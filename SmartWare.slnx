@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SmartWare.Application/SmartWare.Application.csproj" />
+    <Project Path="src/SmartWare.Domain/SmartWare.Domain.csproj" />
+    <Project Path="src/SmartWare.Infrastructure/SmartWare.Infrastructure.csproj" />
+    <Project Path="src/SmartWare.Web/SmartWare.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SmartWare.AuthorizationTests/SmartWare.AuthorizationTests.csproj" />
+    <Project Path="tests/SmartWare.IntegrationTests/SmartWare.IntegrationTests.csproj" />
+    <Project Path="tests/SmartWare.UnitTests/SmartWare.UnitTests.csproj" />
+  </Folder>
+</Solution>

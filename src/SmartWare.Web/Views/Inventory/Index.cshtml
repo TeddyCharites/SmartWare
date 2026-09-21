@@ -1,0 +1,164 @@
+@model SmartWare.Web.ViewModels.Inventory.InventoryIndexViewModel
+@{
+    ViewData["Title"] = "Tồn kho";
+    var stats = Model.Statistics;
+    var showHistory = Model.Tab == "history";
+    string StockStatusText(StockLevelStatus status) => status switch
+    {
+        StockLevelStatus.Healthy => "Ổn định",
+        StockLevelStatus.Low => "Sắp hết",
+        StockLevelStatus.Out => "Hết hàng",
+        StockLevelStatus.Excess => "Vượt mức",
+        _ => status.ToString()
+    };
+    string StockStatusClass(StockLevelStatus status) => status switch
+    {
+        StockLevelStatus.Healthy => "stock-ok",
+        StockLevelStatus.Low => "stock-low",
+        StockLevelStatus.Out => "stock-out",
+        StockLevelStatus.Excess => "stock-excess",
+        _ => "state-inactive"
+    };
+}
+
+<div class="page-heading">
+    <div><span class="eyebrow">KIỂM SOÁT KHO</span><h1>Tồn kho</h1><p>Snapshot tồn hiện tại, cảnh báo và sổ lịch sử nhập xuất từ dữ liệu thực.</p></div>
+</div>
+
+<section class="compact-metrics inventory-metrics">
+    <article><span>Tổng sản phẩm</span><strong>@stats.TotalProducts.ToString("N0")</strong></article>
+    <article><span>Tồn thực tế</span><strong>@stats.CurrentQuantity.ToString("N0")</strong></article>
+    <article><span>Đã giữ</span><strong class="text-warning-emphasis">@stats.ReservedQuantity.ToString("N0")</strong></article>
+    <article><span>Khả dụng</span><strong class="text-success">@stats.AvailableQuantity.ToString("N0")</strong></article>
+    <article><span>Giá trị tồn</span><strong>@stats.InventoryValue.ToString("N0") ₫</strong></article>
+</section>
+
+<nav class="inventory-tabs" aria-label="Góc nhìn tồn kho">
+    <a asp-action="Index" asp-route-tab="stock" class="@(showHistory ? "" : "active")">Danh sách tồn kho</a>
+    <a asp-action="Index" asp-route-tab="history" class="@(showHistory ? "active" : "")">Lịch sử biến động</a>
+</nav>
+
+@if (!showHistory && Model.Overview is { } overview)
+{
+    <div class="inventory-layout">
+        <section class="panel">
+            <form method="get" class="filter-bar inventory-filter-bar">
+                <input type="hidden" name="tab" value="stock" />
+                <div class="filter-search"><label for="stock-search" class="visually-hidden">Tìm kiếm</label><input id="stock-search" name="search" value="@Model.Search" class="form-control" placeholder="Tìm tên, SKU hoặc danh mục..." /></div>
+                <select name="categoryId" class="form-select" aria-label="Lọc danh mục">
+                    <option value="">Tất cả danh mục</option>
+                    @foreach (var category in overview.Categories)
+                    {
+                        <option value="@category.Id" selected="@(Model.CategoryId == category.Id)">@category.Name</option>
+                    }
+                </select>
+                <select name="status" class="form-select" aria-label="Lọc trạng thái tồn">
+                    <option value="">Tất cả trạng thái</option>
+                    @foreach (var status in Enum.GetValues<StockLevelStatus>())
+                    {
+                        <option value="@status" selected="@(Model.Status == status)">@StockStatusText(status)</option>
+                    }
+                </select>
+                <button class="btn btn-outline-primary" type="submit">Lọc</button>
+                <a asp-action="Index" asp-route-tab="stock" class="btn btn-link text-secondary">Đặt lại</a>
+            </form>
+            <div class="table-responsive">
+                <table class="table management-table inventory-table align-middle mb-0">
+                    <thead><tr><th>Sản phẩm</th><th>Danh mục</th><th class="text-end">Thực tế</th><th class="text-end">Đã giữ</th><th class="text-end">Khả dụng</th><th class="text-end">Giá vốn</th><th class="text-end">Giá trị tồn</th><th>Trạng thái</th></tr></thead>
+                    <tbody>
+                    @if (overview.Results.Items.Count == 0)
+                    {
+                        <tr><td colspan="8"><div class="empty-state"><span>◇</span><strong>Không tìm thấy dữ liệu tồn kho</strong><p>Thử thay đổi bộ lọc hoặc kiểm tra danh mục sản phẩm.</p></div></td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in overview.Results.Items)
+                        {
+                            <tr>
+                                <td><a asp-controller="Products" asp-action="Details" asp-route-id="@item.ProductId" class="inventory-product-link">@item.ProductName</a><small class="d-block text-secondary">@item.Sku · @item.UnitOfMeasure</small></td>
+                                <td>@item.CategoryName</td>
+                                <td class="text-end">@item.CurrentQuantity.ToString("N0")</td>
+                                <td class="text-end text-warning-emphasis">@item.ReservedQuantity.ToString("N0")</td>
+                                <td class="text-end fw-bold">@item.AvailableQuantity.ToString("N0")</td>
+                                <td class="text-end">@item.AverageCost.ToString("N0") ₫</td>
+                                <td class="text-end">@item.InventoryValue.ToString("N0") ₫</td>
+                                <td><span class="stock-badge @StockStatusClass(item.Status)">@StockStatusText(item.Status)</span></td>
+                            </tr>
+                        }
+                    }
+                    </tbody>
+                </table>
+            </div>
+            @if (overview.Results.TotalPages > 1)
+            {
+                <div class="pagination-bar"><span>Trang @overview.Results.Page / @overview.Results.TotalPages · @overview.Results.TotalCount kết quả</span><div class="btn-group"><a class="btn btn-sm btn-outline-secondary @(overview.Results.HasPreviousPage ? "" : "disabled")" asp-action="Index" asp-route-tab="stock" asp-route-search="@Model.Search" asp-route-categoryId="@Model.CategoryId" asp-route-status="@Model.Status" asp-route-page="@(overview.Results.Page - 1)">Trước</a><a class="btn btn-sm btn-outline-secondary @(overview.Results.HasNextPage ? "" : "disabled")" asp-action="Index" asp-route-tab="stock" asp-route-search="@Model.Search" asp-route-categoryId="@Model.CategoryId" asp-route-status="@Model.Status" asp-route-page="@(overview.Results.Page + 1)">Sau</a></div></div>
+            }
+        </section>
+
+        <aside class="panel slow-stock-panel">
+            <div class="panel-header"><div><h2>Tồn lâu</h2><p>Sản phẩm có tồn và ít biến động nhất</p></div></div>
+            @if (overview.SlowMovingItems.Count == 0)
+            {
+                <div class="empty-state compact"><strong>Chưa có dữ liệu</strong><p>Cần giao dịch kho để đánh giá.</p></div>
+            }
+            else
+            {
+                <ul class="slow-stock-list">
+                @foreach (var item in overview.SlowMovingItems)
+                {
+                    <li><div><strong>@item.ProductName</strong><span>@item.Sku · tồn @item.CurrentQuantity.ToString("N0")</span></div><span>@item.DaysWithoutMovement ngày</span></li>
+                }
+                </ul>
+            }
+        </aside>
+    </div>
+}
+else if (Model.History is { } history)
+{
+    <section class="panel">
+        <form method="get" class="filter-bar inventory-filter-bar">
+            <input type="hidden" name="tab" value="history" />
+            <div class="filter-search"><label for="history-search" class="visually-hidden">Tìm kiếm</label><input id="history-search" name="search" value="@Model.Search" class="form-control" placeholder="Tìm sản phẩm, SKU hoặc mã phiếu..." /></div>
+            <select name="type" class="form-select" aria-label="Loại biến động">
+                <option value="">Tất cả biến động</option>
+                <option value="In" selected="@(Model.Type == InventoryTransactionType.In)">Nhập kho (IN)</option>
+                <option value="Out" selected="@(Model.Type == InventoryTransactionType.Out)">Xuất kho (OUT)</option>
+            </select>
+            <input type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control receipt-date" aria-label="Từ ngày" />
+            <input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control receipt-date" aria-label="Đến ngày" />
+            <button class="btn btn-outline-primary" type="submit">Lọc</button>
+            <a asp-action="Index" asp-route-tab="history" class="btn btn-link text-secondary">Đặt lại</a>
+        </form>
+        <div class="table-responsive">
+            <table class="table management-table inventory-history-table align-middle mb-0">
+                <thead><tr><th>Thời gian</th><th>Loại</th><th>Sản phẩm</th><th>Kho</th><th class="text-end">Số lượng</th><th class="text-end">Đơn giá</th><th>Chứng từ</th><th>Người thực hiện</th></tr></thead>
+                <tbody>
+                @if (history.Results.Items.Count == 0)
+                {
+                    <tr><td colspan="8"><div class="empty-state"><span>◇</span><strong>Chưa có biến động phù hợp</strong><p>Giao dịch IN/OUT sẽ xuất hiện sau khi hoàn tất phiếu kho.</p></div></td></tr>
+                }
+                else
+                {
+                    @foreach (var item in history.Results.Items)
+                    {
+                        <tr>
+                            <td>@item.OccurredAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                            <td><span class="movement-type @(item.Type == InventoryTransactionType.In ? "movement-in" : "movement-out")">@(item.Type == InventoryTransactionType.In ? "IN" : "OUT")</span></td>
+                            <td><strong>@item.ProductName</strong><small class="d-block text-secondary">@item.Sku</small></td>
+                            <td>@item.WarehouseName</td>
+                            <td class="text-end fw-bold @(item.Type == InventoryTransactionType.In ? "text-success" : "text-danger")">@(item.Type == InventoryTransactionType.In ? "+" : "−")@item.Quantity.ToString("N0")</td>
+                            <td class="text-end">@item.UnitCost.ToString("N0") ₫</td>
+                            <td>@item.ReferenceNumber</td>
+                            <td>@item.PerformedByName</td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+        </div>
+        @if (history.Results.TotalPages > 1)
+        {
+            <div class="pagination-bar"><span>Trang @history.Results.Page / @history.Results.TotalPages · @history.Results.TotalCount giao dịch</span><div class="btn-group"><a class="btn btn-sm btn-outline-secondary @(history.Results.HasPreviousPage ? "" : "disabled")" asp-action="Index" asp-route-tab="history" asp-route-search="@Model.Search" asp-route-type="@Model.Type" asp-route-fromDate="@Model.FromDate" asp-route-toDate="@Model.ToDate" asp-route-page="@(history.Results.Page - 1)">Trước</a><a class="btn btn-sm btn-outline-secondary @(history.Results.HasNextPage ? "" : "disabled")" asp-action="Index" asp-route-tab="history" asp-route-search="@Model.Search" asp-route-type="@Model.Type" asp-route-fromDate="@Model.FromDate" asp-route-toDate="@Model.ToDate" asp-route-page="@(history.Results.Page + 1)">Sau</a></div></div>
+        }
+    </section>
+}

@@ -1,0 +1,74 @@
+@model SmartWare.Web.ViewModels.Suppliers.SupplierIndexViewModel
+@{
+    ViewData["Title"] = "Nhà cung cấp";
+    var stats = Model.Page.Statistics;
+    var results = Model.Page.Results;
+}
+
+<div class="page-heading">
+    <div><span class="eyebrow">ĐỐI TÁC CUNG ỨNG</span><h1>Nhà cung cấp</h1><p>Quản lý hồ sơ, liên hệ và hiệu quả cung ứng.</p></div>
+    <div class="d-flex gap-2">
+        <a asp-action="Export" asp-route-search="@Model.Search" asp-route-isActive="@Model.IsActive" class="btn btn-outline-secondary">Xuất Excel (.csv)</a>
+        <a asp-action="Create" class="btn btn-primary">+ Thêm nhà cung cấp</a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">@success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<section class="compact-metrics">
+    <article><span>Tổng nhà cung cấp</span><strong>@stats.TotalSuppliers.ToString("N0")</strong></article>
+    <article><span>Đang hoạt động</span><strong>@stats.ActiveSuppliers.ToString("N0")</strong></article>
+    <article><span>Sản phẩm cung cấp</span><strong>@stats.TotalProducts.ToString("N0")</strong></article>
+    <article><span>Giá trị nhập hoàn tất</span><strong>@stats.TotalImportedValue.ToString("N0") ₫</strong></article>
+    <article><span>Mới trong tháng</span><strong>@stats.NewThisMonth.ToString("N0")</strong></article>
+</section>
+
+<section class="panel">
+    <form method="get" class="filter-bar">
+        <div class="filter-search"><label for="search" class="visually-hidden">Tìm kiếm</label><input id="search" name="search" value="@Model.Search" class="form-control" placeholder="Tìm mã, tên, điện thoại hoặc địa chỉ..." /></div>
+        <select name="isActive" class="form-select" aria-label="Lọc trạng thái">
+            <option value="">Tất cả trạng thái</option>
+            <option value="true" selected="@(Model.IsActive == true)">Đang hoạt động</option>
+            <option value="false" selected="@(Model.IsActive == false)">Ngừng hoạt động</option>
+        </select>
+        <button class="btn btn-outline-primary" type="submit">Lọc</button>
+        <a asp-action="Index" class="btn btn-link text-secondary">Đặt lại</a>
+    </form>
+    <div class="table-responsive">
+        <table class="table management-table align-middle mb-0">
+            <thead><tr><th>Mã / Nhà cung cấp</th><th>Liên hệ</th><th>Địa chỉ</th><th class="text-center">Sản phẩm</th><th class="text-end">Giá trị nhập</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr></thead>
+            <tbody>
+                @if (results.Items.Count == 0)
+                {
+                    <tr><td colspan="7"><div class="empty-state"><span>◇</span><strong>Không tìm thấy nhà cung cấp</strong><p>Thử thay đổi điều kiện lọc hoặc thêm nhà cung cấp mới.</p></div></td></tr>
+                }
+                else
+                {
+                    @foreach (var item in results.Items)
+                    {
+                        <tr>
+                            <td><strong class="d-block">@item.Name</strong><small class="text-secondary">@item.Code</small></td>
+                            <td><span class="d-block">@(item.ContactName ?? "—")</span><small class="text-secondary">@(item.Phone ?? item.Email ?? "Chưa có liên hệ")</small></td>
+                            <td class="text-secondary text-truncate-cell">@(item.Address ?? "—")</td>
+                            <td class="text-center"><span class="number-chip">@item.ProductCount</span></td>
+                            <td class="text-end fw-semibold">@item.TotalImportedValue.ToString("N0") ₫</td>
+                            <td><span class="state-badge @(item.IsActive ? "state-active" : "state-inactive")">@(item.IsActive ? "Hoạt động" : "Ngừng hoạt động")</span></td>
+                            <td class="text-end table-actions"><a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">Xem</a><a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Sửa</a><a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger">Xóa</a></td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (results.TotalPages > 1)
+    {
+        <div class="pagination-bar"><span>Trang @results.Page / @results.TotalPages · @results.TotalCount kết quả</span><div class="btn-group"><a class="btn btn-sm btn-outline-secondary @(results.HasPreviousPage ? "" : "disabled")" asp-action="Index" asp-route-search="@Model.Search" asp-route-isActive="@Model.IsActive" asp-route-page="@(results.Page - 1)">Trước</a><a class="btn btn-sm btn-outline-secondary @(results.HasNextPage ? "" : "disabled")" asp-action="Index" asp-route-search="@Model.Search" asp-route-isActive="@Model.IsActive" asp-route-page="@(results.Page + 1)">Sau</a></div></div>
+    }
+</section>

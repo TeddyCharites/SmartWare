@@ -1,0 +1,144 @@
+@model DashboardSnapshot
+@{
+    ViewData["Title"] = "Tổng quan";
+
+    string StatusLabel(ReceiptStatus status) => status switch
+    {
+        ReceiptStatus.Pending => "Chờ duyệt",
+        ReceiptStatus.Approved => "Đã duyệt",
+        ReceiptStatus.Rejected => "Từ chối",
+        ReceiptStatus.Completed => "Hoàn tất",
+        ReceiptStatus.Cancelled => "Đã hủy",
+        _ => status.ToString()
+    };
+
+    string StatusClass(ReceiptStatus status) => status switch
+    {
+        ReceiptStatus.Pending => "status-pending",
+        ReceiptStatus.Approved => "status-approved",
+        ReceiptStatus.Completed => "status-completed",
+        ReceiptStatus.Rejected => "status-rejected",
+        _ => "status-neutral"
+    };
+}
+
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">TRUNG TÂM ĐIỀU HÀNH</span>
+        <h1>Tổng quan kho hàng</h1>
+        <p>Theo dõi tồn kho, chứng từ và các cảnh báo cần xử lý.</p>
+    </div>
+    <div class="heading-meta">
+        <span class="live-indicator"><i></i>Dữ liệu trực tiếp</span>
+        <span>Cập nhật @DateTime.Now.ToString("HH:mm")</span>
+    </div>
+</div>
+
+<section class="metrics-grid" aria-label="Chỉ số tổng quan">
+    <article class="metric-card metric-blue">
+        <div class="metric-icon"><svg viewBox="0 0 24 24"><path d="M3 7.2 12 3l9 4.2v9.6L12 21l-9-4.2V7.2Zm9-2L6.1 8 12 10.8 17.9 8 12 5.2ZM5 9.6v5.9l6 2.8v-5.9L5 9.6Zm8 8.7 6-2.8V9.6l-6 2.8v5.9Z"/></svg></div>
+        <div><span>Sản phẩm đang dùng</span><strong>@Model.TotalProducts.ToString("N0")</strong><small>Mã hàng hoạt động</small></div>
+    </article>
+    <article class="metric-card metric-violet">
+        <div class="metric-icon"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg></div>
+        <div><span>Danh mục</span><strong>@Model.TotalCategories.ToString("N0")</strong><small>Nhóm hàng hoạt động</small></div>
+    </article>
+    <article class="metric-card metric-teal">
+        <div class="metric-icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v4H4V5Zm1 6h14v8H5v-8Zm5 2v2h4v-2h-4Z"/></svg></div>
+        <div><span>Tổng tồn thực tế</span><strong>@Model.TotalStockQuantity.ToString("N0")</strong><small>Đơn vị trong các kho</small></div>
+    </article>
+    <article class="metric-card metric-amber">
+        <div class="metric-icon"><svg viewBox="0 0 24 24"><path d="M12 3 1.8 20h20.4L12 3Zm1 13h-2v-2h2v2Zm0-4h-2V8h2v4Z"/></svg></div>
+        <div><span>Cảnh báo tồn thấp</span><strong>@Model.LowStockProductCount.ToString("N0")</strong><small>@Model.PendingReceiptCount phiếu đang chờ duyệt</small></div>
+    </article>
+</section>
+
+<div class="dashboard-grid dashboard-grid-main">
+    <section class="panel movement-panel">
+        <div class="panel-header">
+            <div><h2>Nhập — xuất 6 tháng</h2><p>Số lượng từ các phiếu đã hoàn tất</p></div>
+            <div class="chart-legend"><span><i class="legend-import"></i>Nhập kho</span><span><i class="legend-export"></i>Xuất kho</span></div>
+        </div>
+        <div class="movement-chart" role="img" aria-label="Biểu đồ số lượng nhập và xuất trong sáu tháng gần nhất">
+            @foreach (var movement in Model.MonthlyMovements)
+            {
+                var importHeight = movement.ImportQuantity == 0 ? 0 : Math.Max(4, (int)Math.Round(movement.ImportQuantity * 100d / Model.ChartMaximum));
+                var exportHeight = movement.ExportQuantity == 0 ? 0 : Math.Max(4, (int)Math.Round(movement.ExportQuantity * 100d / Model.ChartMaximum));
+                <div class="movement-column">
+                    <div class="movement-bars">
+                        <div class="movement-bar import-bar" style="height: @(importHeight)%" title="Nhập: @movement.ImportQuantity.ToString("N0")">
+                            @if (movement.ImportQuantity > 0)
+                            {
+                                <span>@movement.ImportQuantity.ToString("N0")</span>
+                            }
+                        </div>
+                        <div class="movement-bar export-bar" style="height: @(exportHeight)%" title="Xuất: @movement.ExportQuantity.ToString("N0")">
+                            @if (movement.ExportQuantity > 0)
+                            {
+                                <span>@movement.ExportQuantity.ToString("N0")</span>
+                            }
+                        </div>
+                    </div>
+                    <small>@movement.Month.ToString("MM/yyyy")</small>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="panel alert-panel">
+        <div class="panel-header">
+            <div><h2>Cảnh báo tồn kho</h2><p>Hàng hóa đã chạm mức tối thiểu</p></div>
+            <span class="count-pill">@Model.LowStockProductCount</span>
+        </div>
+        @if (Model.StockAlerts.Count == 0)
+        {
+            <div class="empty-state compact"><span>✓</span><strong>Tồn kho ổn định</strong><p>Chưa có sản phẩm cần bổ sung.</p></div>
+        }
+        else
+        {
+            <div class="stock-alert-list">
+                @foreach (var item in Model.StockAlerts)
+                {
+                    <div class="stock-alert-row">
+                        <span class="stock-alert-icon">!</span>
+                        <div><strong>@item.ProductName</strong><small>@item.Sku · Tối thiểu @item.MinimumQuantity.ToString("N0")</small></div>
+                        <span class="stock-quantity @(item.AvailableQuantity <= 0 ? "critical" : string.Empty)">@item.AvailableQuantity.ToString("N0")</span>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+<section class="panel receipts-panel">
+    <div class="panel-header">
+        <div><h2>Phiếu kho gần đây</h2><p>Các chứng từ nhập và xuất mới nhất</p></div>
+        <span class="panel-note">Hiển thị tối đa 6 phiếu</span>
+    </div>
+    @if (Model.RecentReceipts.Count == 0)
+    {
+        <div class="empty-state"><span>◇</span><strong>Chưa có phiếu kho</strong><p>Dữ liệu sẽ xuất hiện sau khi tạo phiếu nhập hoặc xuất đầu tiên.</p></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table dashboard-table align-middle mb-0">
+                <thead><tr><th>Mã phiếu</th><th>Loại</th><th>Đối tác / nguồn</th><th>Kho</th><th class="text-end">Số lượng</th><th>Trạng thái</th><th>Ngày tạo</th></tr></thead>
+                <tbody>
+                    @foreach (var receipt in Model.RecentReceipts)
+                    {
+                        <tr>
+                            <td class="receipt-number">@receipt.ReceiptNumber</td>
+                            <td><span class="receipt-type @(receipt.Type == DashboardReceiptType.Import ? "type-import" : "type-export")">@(receipt.Type == DashboardReceiptType.Import ? "Nhập" : "Xuất")</span></td>
+                            <td>@receipt.PartnerName</td>
+                            <td>@receipt.WarehouseName</td>
+                            <td class="text-end fw-semibold">@receipt.TotalQuantity.ToString("N0")</td>
+                            <td><span class="receipt-status @StatusClass(receipt.Status)">@StatusLabel(receipt.Status)</span></td>
+                            <td class="text-secondary">@receipt.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

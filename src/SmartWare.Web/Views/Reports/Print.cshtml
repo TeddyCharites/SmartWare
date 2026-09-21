@@ -1,0 +1,47 @@
+@model SmartWare.Application.Reports.WarehouseReport
+@{
+    Layout = null;
+    var generatedAt = DateTime.Now;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Báo cáo kho @Model.Period.FromDate.ToString("dd-MM-yyyy") - @Model.Period.ToDate.ToString("dd-MM-yyyy")</title>
+    <style>
+        body { margin: 28px; color: #172435; font: 12px "Segoe UI", Arial, sans-serif; }
+        h1 { margin-bottom: 4px; color: #102f4f; } h2 { margin-top: 24px; font-size: 16px; }
+        .muted { color: #67758a; } .actions { position: fixed; top: 20px; right: 20px; }
+        button { padding: 8px 14px; border: 0; border-radius: 5px; color: white; background: #176bce; cursor: pointer; }
+        .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 20px 0; }
+        .kpis div { padding: 10px; border: 1px solid #dce3eb; border-radius: 6px; }
+        .kpis span, .kpis strong { display: block; } .kpis span { color: #67758a; font-size: 10px; } .kpis strong { margin-top: 4px; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; } th, td { padding: 6px; border: 1px solid #dce3eb; text-align: left; } th { background: #edf3f8; }
+        .number { text-align: right; } .page-break { break-before: page; }
+        @@media print { body { margin: 10mm; } .actions { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="actions"><button type="button" onclick="window.print()">In / Lưu thành PDF</button></div>
+    <h1>SmartWare AI — Báo cáo kho</h1>
+    <div class="muted">Kỳ báo cáo: @Model.Period.FromDate.ToString("dd/MM/yyyy") – @Model.Period.ToDate.ToString("dd/MM/yyyy") · Tạo lúc @generatedAt.ToString("dd/MM/yyyy HH:mm")</div>
+    <div class="kpis">
+        <div><span>Số lượng nhập</span><strong>@Model.Kpis.ImportQuantity.ToString("N0")</strong></div>
+        <div><span>Số lượng xuất</span><strong>@Model.Kpis.ExportQuantity.ToString("N0")</strong></div>
+        <div><span>Giá trị nhập</span><strong>@Model.Kpis.ImportValue.ToString("N0") ₫</strong></div>
+        <div><span>Doanh thu</span><strong>@Model.Kpis.Revenue.ToString("N0") ₫</strong></div>
+        <div><span>Giá vốn xuất</span><strong>@Model.Kpis.CostOfGoodsSold.ToString("N0") ₫</strong></div>
+        <div><span>Lợi nhuận gộp</span><strong>@Model.Kpis.GrossProfit.ToString("N0") ₫</strong></div>
+        <div><span>Giá trị tồn hiện tại</span><strong>@Model.Kpis.InventoryValue.ToString("N0") ₫</strong></div>
+    </div>
+    <h2>Top sản phẩm theo lượng xuất</h2>
+    <table><thead><tr><th>Mã</th><th>Sản phẩm</th><th class="number">Nhập</th><th class="number">Xuất</th><th class="number">Khả dụng</th><th class="number">Giá trị tồn</th><th class="number">Doanh thu</th></tr></thead><tbody>
+        @foreach (var item in Model.Products.Take(30)) { <tr><td>@item.Sku</td><td>@item.ProductName</td><td class="number">@item.ImportQuantity.ToString("N0")</td><td class="number">@item.ExportQuantity.ToString("N0")</td><td class="number">@item.AvailableQuantity.ToString("N0")</td><td class="number">@item.InventoryValue.ToString("N0")</td><td class="number">@item.Revenue.ToString("N0")</td></tr> }
+    </tbody></table>
+    <h2 class="page-break">Dự báo và đề xuất bổ sung</h2>
+    <table><thead><tr><th>Mã</th><th>Sản phẩm</th><th class="number">Khả dụng</th><th class="number">Dự báo 30 ngày</th><th class="number">Đề xuất</th><th>Rủi ro</th></tr></thead><tbody>
+        @foreach (var item in Model.Forecasts.Take(30)) { <tr><td>@item.Sku</td><td>@item.ProductName</td><td class="number">@item.AvailableQuantity.ToString("N0")</td><td class="number">@(item.HasHistory ? item.ForecastThirtyDays.ToString("N0") : "—")</td><td class="number">@item.SuggestedReplenishment.ToString("N0")</td><td>@item.RiskLevel</td></tr> }
+    </tbody></table>
+</body>
+</html>

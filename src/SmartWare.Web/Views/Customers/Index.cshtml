@@ -1,0 +1,71 @@
+@model SmartWare.Web.ViewModels.Customers.CustomerIndexViewModel
+@{
+    ViewData["Title"] = "Khách hàng";
+    var stats = Model.Page.Statistics;
+    var results = Model.Page.Results;
+}
+
+<div class="page-heading">
+    <div><span class="eyebrow">ĐỐI TÁC BÁN HÀNG</span><h1>Khách hàng</h1><p>Quản lý hồ sơ, lịch sử đơn và doanh thu hoàn thành.</p></div>
+    <div class="d-flex gap-2"><a asp-action="Export" asp-route-search="@Model.Search" asp-route-isActive="@Model.IsActive" class="btn btn-outline-secondary">Xuất Excel (.csv)</a><a asp-action="Create" class="btn btn-primary">+ Thêm khách hàng</a></div>
+</div>
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">@success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<section class="compact-metrics">
+    <article><span>Tổng khách hàng</span><strong>@stats.TotalCustomers.ToString("N0")</strong></article>
+    <article><span>Khách có đơn</span><strong>@stats.CustomersWithOrders.ToString("N0")</strong></article>
+    <article><span>Khách mới tháng này</span><strong>@stats.NewThisMonth.ToString("N0")</strong></article>
+    <article><span>Tổng đơn hàng</span><strong>@stats.TotalOrders.ToString("N0")</strong></article>
+    <article><span>Doanh thu hoàn thành</span><strong>@stats.CompletedRevenue.ToString("N0") ₫</strong></article>
+</section>
+
+<section class="panel">
+    <form method="get" class="filter-bar">
+        <div class="filter-search"><label for="search" class="visually-hidden">Tìm kiếm</label><input id="search" name="search" value="@Model.Search" class="form-control" placeholder="Tìm mã, tên, SĐT, email hoặc địa chỉ..." /></div>
+        <select name="isActive" class="form-select" aria-label="Lọc trạng thái">
+            <option value="">Tất cả trạng thái</option>
+            <option value="true" selected="@(Model.IsActive == true)">Hoạt động</option>
+            <option value="false" selected="@(Model.IsActive == false)">Ngừng hoạt động</option>
+        </select>
+        <button class="btn btn-outline-primary" type="submit">Lọc</button><a asp-action="Index" class="btn btn-link text-secondary">Đặt lại</a>
+    </form>
+    <div class="table-responsive">
+        <table class="table management-table align-middle mb-0">
+            <thead><tr><th>Khách hàng</th><th>Liên hệ</th><th>Địa chỉ</th><th class="text-end">Tổng đơn</th><th class="text-end">Tổng chi tiêu</th><th>Đơn gần nhất</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr></thead>
+            <tbody>
+            @if (results.Items.Count == 0)
+            {
+                <tr><td colspan="8"><div class="empty-state"><span>◇</span><strong>Không tìm thấy khách hàng</strong><p>Thử thay đổi bộ lọc hoặc thêm khách hàng mới.</p></div></td></tr>
+            }
+            else
+            {
+                @foreach (var item in results.Items)
+                {
+                    <tr>
+                        <td><strong>@item.Name</strong><small class="d-block text-secondary">@item.Code</small></td>
+                        <td><span class="d-block">@(item.Phone ?? "—")</span><small class="text-secondary">@(item.Email ?? "—")</small></td>
+                        <td class="text-truncate-cell">@(item.Address ?? "—")</td>
+                        <td class="text-end">@item.OrderCount.ToString("N0")</td>
+                        <td class="text-end fw-semibold">@item.CompletedRevenue.ToString("N0") ₫</td>
+                        <td>@(item.LastOrderAt?.ToLocalTime().ToString("dd/MM/yyyy") ?? "—")</td>
+                        <td><span class="state-badge @(item.IsActive ? "state-active" : "state-inactive")">@(item.IsActive ? "Hoạt động" : "Ngừng hoạt động")</span></td>
+                        <td class="text-end table-actions"><a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">Xem</a><a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Sửa</a><a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger">Xóa</a></td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+    @if (results.TotalPages > 1)
+    {
+        <div class="pagination-bar"><span>Trang @results.Page / @results.TotalPages · @results.TotalCount kết quả</span><div class="btn-group"><a class="btn btn-sm btn-outline-secondary @(results.HasPreviousPage ? "" : "disabled")" asp-action="Index" asp-route-search="@Model.Search" asp-route-isActive="@Model.IsActive" asp-route-page="@(results.Page - 1)">Trước</a><a class="btn btn-sm btn-outline-secondary @(results.HasNextPage ? "" : "disabled")" asp-action="Index" asp-route-search="@Model.Search" asp-route-isActive="@Model.IsActive" asp-route-page="@(results.Page + 1)">Sau</a></div></div>
+    }
+</section>

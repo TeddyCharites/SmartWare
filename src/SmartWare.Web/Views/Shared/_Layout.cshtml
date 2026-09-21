@@ -1,0 +1,166 @@
+@{
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    var roleLabel = User.IsInRole(RoleNames.Admin) ? "Admin" :
+        User.IsInRole(RoleNames.Manager) ? "Quản lý" : "Nhân viên";
+    string ActiveClass(string controller) =>
+        string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b1739" />
+    <title>@ViewData["Title"] - SmartWare AI</title>
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/chatbot.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/SmartWare.Web.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/modern.css" asp-append-version="true" />
+</head>
+<body class="@(isAuthenticated ? "app-body" : "guest-body")">
+    @if (isAuthenticated)
+    {
+        <div class="app-shell">
+            <aside class="app-sidebar" id="appSidebar" aria-label="Điều hướng chính">
+                <a class="brand" asp-controller="Home" asp-action="Index">
+                    <span class="brand-mark" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M3 7.2 12 3l9 4.2v9.6L12 21l-9-4.2V7.2Zm9-2L6.1 8 12 10.8 17.9 8 12 5.2ZM5 9.6v5.9l6 2.8v-5.9L5 9.6Zm8 8.7 6-2.8V9.6l-6 2.8v5.9Z"/></svg>
+                    </span>
+                    <span>
+                        <strong>SmartWare</strong>
+                        <small>Warehouse intelligence</small>
+                    </span>
+                </a>
+
+                <nav class="sidebar-nav">
+                    <span class="nav-section-title">Không gian làm việc</span>
+                    <a class="sidebar-link @ActiveClass("Home")" asp-controller="Home" asp-action="Index">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6v-9h-6v9Zm0-16v5h6V4h-6Z"/></svg>
+                        <span>Tổng quan</span>
+                    </a>
+                    <a class="sidebar-link @ActiveClass("Products")" asp-controller="Products" asp-action="Index">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.2 12 3l9 4.2v9.6L12 21l-9-4.2V7.2Zm9-2L6.1 8 12 10.8 17.9 8 12 5.2ZM5 9.6v5.9l6 2.8v-5.9L5 9.6Zm8 8.7 6-2.8V9.6l-6 2.8v5.9Z"/></svg>
+                        <span>Sản phẩm</span>
+                    </a>
+                    <a class="sidebar-link @ActiveClass("ImportReceipts")" asp-controller="ImportReceipts" asp-action="Index">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h11v11H3V5Zm13 4h3l2 3v4h-5V9ZM6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm11 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM8 7v5H6l3 3 3-3h-2V7H8Z"/></svg>
+                        <span>Nhập kho</span>
+                    </a>
+                    <a class="sidebar-link @ActiveClass("ExportReceipts")" asp-controller="ExportReceipts" asp-action="Index">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h11v11H3V5Zm13 4h3l2 3v4h-5V9ZM6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm11 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm-7-2V9h2l-3-3-3 3h2v5h2Z"/></svg>
+                        <span>Xuất kho</span>
+                    </a>
+                    <a class="sidebar-link @ActiveClass("Inventory")" asp-controller="Inventory" asp-action="Index">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v5H4V4Zm0 7h16v9H4v-9Zm3 2v2h4v-2H7Zm0-7v1h4V6H7Z"/></svg>
+                        <span>Tồn kho</span>
+                    </a>
+
+                    @if (User.IsInRole(RoleNames.Admin) || User.IsInRole(RoleNames.Manager))
+                    {
+                        <a class="sidebar-link @ActiveClass("Reports")" asp-controller="Reports" asp-action="Index">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16v2H4v-2Zm1-2V9h3v8H5Zm5 0V4h3v13h-3Zm5 0v-6h3v6h-3Z"/></svg>
+                            <span>Báo cáo</span>
+                        </a>
+                        <a class="sidebar-link @ActiveClass("Knowledge")" asp-controller="Knowledge" asp-action="Index">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h13a3 3 0 0 1 3 3v15H7a3 3 0 0 1-3-3V3Zm3 2H6v11.2c.3-.1.7-.2 1-.2h11V6a1 1 0 0 0-1-1H7Zm0 13a1 1 0 0 0 0 2h11v-2H7Zm2-10h6v2H9V8Zm0 4h6v2H9v-2Z"/></svg>
+                            <span>Kho tri thức</span>
+                        </a>
+                    }
+
+                    @if (User.IsInRole(RoleNames.Admin))
+                    {
+                        <a class="sidebar-link @ActiveClass("Orders")" asp-controller="Orders" asp-action="Index">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v3h3v15H3V6h3V3Zm2 3h8V5H8v1Zm-3 2v11h14V8H5Zm3 3h8v2H8v-2Zm0 4h5v2H8v-2Z"/></svg>
+                            <span>Đơn hàng</span>
+                        </a>
+                        <span class="nav-section-title mt-4">Dữ liệu nền</span>
+                        <a class="sidebar-link @ActiveClass("Categories")" asp-controller="Categories" asp-action="Index">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg>
+                            <span>Danh mục</span>
+                        </a>
+                        <a class="sidebar-link @ActiveClass("Suppliers")" asp-controller="Suppliers" asp-action="Index">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v10H3V6Zm13 3h3l2 3v4h-5V9ZM6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm11 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg>
+                            <span>Nhà cung cấp</span>
+                        </a>
+                        <a class="sidebar-link @ActiveClass("Customers")" asp-controller="Customers" asp-action="Index">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5Z"/></svg>
+                            <span>Khách hàng</span>
+                        </a>
+                        <span class="nav-section-title mt-4">Quản trị</span>
+                        <a class="sidebar-link @ActiveClass("Users")" asp-controller="Users" asp-action="Index">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11c1.7 0 3-1.3 3-3s-1.3-3-3-3c-.3 0-.7.1-1 .2.6.8 1 1.8 1 2.8s-.4 2-1 2.8c.3.1.7.2 1 .2ZM8 11c1.7 0 3-1.3 3-3S9.7 5 8 5 5 6.3 5 8s1.3 3 3 3Zm8 2c-.4 0-.9 0-1.3.1 1.4 1 2.3 2.4 2.3 3.9v2h5v-2c0-2.2-2.7-4-6-4ZM8 13c-3.3 0-6 1.8-6 4v2h12v-2c0-2.2-2.7-4-6-4Z"/></svg>
+                            <span>Người dùng</span>
+                        </a>
+                    }
+                </nav>
+
+                <div class="sidebar-foot">
+                    <span class="status-dot"></span>
+                    <span>Hệ thống hoạt động</span>
+                </div>
+            </aside>
+
+            <button class="sidebar-backdrop" type="button" data-sidebar-close aria-label="Đóng menu"></button>
+
+            <section class="app-workspace">
+                <header class="app-topbar">
+                    <button class="icon-button sidebar-toggle" type="button" data-sidebar-toggle
+                            aria-controls="appSidebar" aria-expanded="false" aria-label="Mở menu">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg>
+                    </button>
+                    <div class="topbar-heading">
+                        <span>Hệ thống quản lý kho</span>
+                        <small>@DateTime.Today.ToString("dddd, dd/MM/yyyy")</small>
+                    </div>
+                    <div class="account-box">
+                        <span class="account-avatar" aria-hidden="true">@((User.Identity?.Name ?? "S")[0].ToString().ToUpperInvariant())</span>
+                        <span class="account-copy">
+                            <strong>@User.Identity?.Name</strong>
+                            <small>@roleLabel</small>
+                        </span>
+                        <form asp-controller="Account" asp-action="Logout" method="post">
+                            <button type="submit" class="logout-button" title="Đăng xuất" aria-label="Đăng xuất">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17v2H5V5h5v2H7v10h3Zm8.6-6-3-3L17 6.6l5.4 5.4-5.4 5.4-1.4-1.4 3-3H10v-2h8.6Z"/></svg>
+                            </button>
+                        </form>
+                    </div>
+                </header>
+
+                <main class="app-content" role="main">
+                    @RenderBody()
+                </main>
+
+                <footer class="app-footer">
+                    <span>&copy; 2026 SmartWare AI</span>
+                    <span>Quản lý kho chính xác, vận hành chủ động</span>
+                </footer>
+            </section>
+        </div>
+        <partial name="_Chatbot" />
+    }
+    else
+    {
+        <div class="guest-shell">
+            <header class="guest-header">
+                <a class="brand brand-dark" asp-controller="Home" asp-action="Index">
+                    <span class="brand-mark" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M3 7.2 12 3l9 4.2v9.6L12 21l-9-4.2V7.2Zm9-2L6.1 8 12 10.8 17.9 8 12 5.2ZM5 9.6v5.9l6 2.8v-5.9L5 9.6Zm8 8.7 6-2.8V9.6l-6 2.8v5.9Z"/></svg>
+                    </span>
+                    <span><strong>SmartWare</strong><small>Warehouse intelligence</small></span>
+                </a>
+            </header>
+            <main class="guest-content" role="main">@RenderBody()</main>
+            <footer class="guest-footer">&copy; 2026 SmartWare AI</footer>
+        </div>
+    }
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/chatbot.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

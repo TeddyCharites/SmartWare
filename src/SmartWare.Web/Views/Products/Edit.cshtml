@@ -1,0 +1,7 @@
+@model SmartWare.Web.ViewModels.Products.ProductFormViewModel
+@{ ViewData["Title"] = "Chỉnh sửa sản phẩm"; }
+<div class="form-page form-page-wide">
+    <div class="form-page-header"><div><span class="eyebrow">SẢN PHẨM</span><h1>Chỉnh sửa sản phẩm</h1><p>Cập nhật thông tin, giá và ngưỡng tồn.</p></div><a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a></div>
+    <form method="post" enctype="multipart/form-data" class="panel form-panel"><div class="panel-body"><partial name="_Form" model="Model" /></div><div class="form-actions"><a asp-action="Index" class="btn btn-light">Hủy</a><button type="submit" class="btn btn-primary">Lưu thay đổi</button></div></form>
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /><script src="~/js/product-image-upload.js" asp-append-version="true"></script> }

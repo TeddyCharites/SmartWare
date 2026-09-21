@@ -1,0 +1,82 @@
+@model SmartWare.Application.AI.Rag.KnowledgeDocumentDetails
+@{
+    ViewData["Title"] = "Nội dung tài liệu";
+}
+
+<div class="form-page form-page-wide knowledge-detail-page">
+    <div class="form-page-header">
+        <div>
+            <span class="eyebrow">TÀI LIỆU RAG · @Model.Category</span>
+            <h1>@Model.Title</h1>
+            <p>Xem nội dung đã được chia đoạn và cung cấp cho chatbot khi truy xuất.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <form asp-action="Reindex" method="post">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <button class="btn btn-outline-primary" type="submit">Lập chỉ mục lại</button>
+            </form>
+            <a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a>
+        </div>
+    </div>
+
+    <section class="panel knowledge-detail-summary">
+        <dl class="detail-grid">
+            <div><dt>Nhóm tài liệu</dt><dd>@Model.Category</dd></div>
+            <div><dt>Phiên bản</dt><dd>v@Model.Version</dd></div>
+            <div><dt>File nguồn</dt><dd>@Model.SourceFile</dd></div>
+            <div><dt>Phạm vi role</dt><dd><span class="number-chip">@Model.AllowedRoles</span></dd></div>
+            <div><dt>Trạng thái</dt><dd><span class="state-badge @(Model.IsActive ? "state-active" : "state-inactive")">@(Model.IsActive ? "Đang dùng" : "Tạm dừng")</span></dd></div>
+            <div><dt>Số đoạn RAG</dt><dd>@Model.Chunks.Count.ToString("N0") đoạn</dd></div>
+            <div><dt>Ngày tạo</dt><dd>@Model.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</dd></div>
+            <div><dt>Cập nhật gần nhất</dt><dd>@(Model.UpdatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Chưa cập nhật")</dd></div>
+        </dl>
+    </section>
+
+    <section class="knowledge-chunk-section">
+        <div class="knowledge-section-heading">
+            <div>
+                <span class="eyebrow">NỘI DUNG TRUY XUẤT</span>
+                <h2>Các đoạn kiến thức</h2>
+            </div>
+            <span class="knowledge-chunk-count">@Model.Chunks.Count đoạn</span>
+        </div>
+
+        @if (Model.Chunks.Count == 0)
+        {
+            <div class="panel empty-state">
+                <strong>Tài liệu chưa có nội dung đã lập chỉ mục</strong>
+                <p>Hãy thử lập chỉ mục lại tài liệu.</p>
+            </div>
+        }
+        else
+        {
+            <div class="knowledge-chunk-list">
+                @foreach (var chunk in Model.Chunks)
+                {
+                    <article class="panel knowledge-chunk-card">
+                        <header>
+                            <div>
+                                <span class="knowledge-chunk-number">Đoạn @(chunk.Index + 1)</span>
+                                <span class="small text-secondary">ID @chunk.Id</span>
+                            </div>
+                            <div class="knowledge-embedding-state">
+                                <span class="state-badge @(chunk.IsEmbedded ? "state-active" : "state-inactive")">
+                                    @(chunk.IsEmbedded ? "Đã embedding" : "Tìm kiếm từ khóa")
+                                </span>
+                                @if (!string.IsNullOrWhiteSpace(chunk.EmbeddingModel))
+                                {
+                                    <span class="small text-secondary">@chunk.EmbeddingModel</span>
+                                }
+                            </div>
+                        </header>
+                        <div class="knowledge-chunk-content">@chunk.Content</div>
+                        @if (chunk.EmbeddedAt.HasValue)
+                        {
+                            <footer>Embedding lúc @chunk.EmbeddedAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</footer>
+                        }
+                    </article>
+                }
+            </div>
+        }
+    </section>
+</div>

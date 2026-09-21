@@ -1,0 +1,180 @@
+@model SmartWare.Web.ViewModels.ImportReceipts.CreateImportReceiptViewModel
+@{
+    ViewData["Title"] = "Tạo phiếu nhập";
+}
+
+<div class="form-page-header">
+    <div><span class="eyebrow">NHẬP HÀNG</span><h1>Tạo phiếu nhập</h1><p>Phiếu mới sẽ ở trạng thái chờ Manager duyệt.</p></div>
+    <a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a>
+</div>
+
+<form asp-action="Create" method="post" class="receipt-form" id="receipt-form">
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+    <section class="panel form-panel">
+        <div class="panel-header"><div><h2>Thông tin nhận hàng</h2><p>Chọn nhà cung cấp trước để lọc danh sách sản phẩm.</p></div></div>
+        <div class="row g-3 p-3 pt-0">
+            <div class="col-md-6">
+                <label asp-for="SupplierId" class="form-label"></label>
+                <select asp-for="SupplierId" class="form-select" id="supplier-select">
+                    <option value="0">-- Chọn nhà cung cấp --</option>
+                    @foreach (var supplier in Model.Suppliers)
+                    {
+                        <option value="@supplier.Id">@supplier.Code · @supplier.Name</option>
+                    }
+                </select>
+                <span asp-validation-for="SupplierId" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="WarehouseId" class="form-label"></label>
+                <select asp-for="WarehouseId" class="form-select">
+                    <option value="0">-- Chọn kho nhận --</option>
+                    @foreach (var warehouse in Model.Warehouses)
+                    {
+                        <option value="@warehouse.Id">@warehouse.Code · @warehouse.Name</option>
+                    }
+                </select>
+                <span asp-validation-for="WarehouseId" class="text-danger"></span>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel mt-3">
+        <div class="panel-header">
+            <div><h2>Chi tiết hàng nhập</h2><p>Mỗi sản phẩm chỉ được thêm một lần.</p></div>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="add-line">+ Thêm dòng</button>
+        </div>
+        <span asp-validation-for="Lines" class="text-danger d-block px-3"></span>
+        <div class="table-responsive">
+            <table class="table management-table receipt-lines-table align-middle mb-0">
+                <thead><tr><th>Sản phẩm</th><th class="quantity-column">Số lượng</th><th class="cost-column">Đơn giá nhập</th><th class="text-end">Thành tiền</th><th></th></tr></thead>
+                <tbody id="receipt-lines">
+                    @for (var index = 0; index < Model.Lines.Count; index++)
+                    {
+                        <tr class="receipt-line">
+                            <td>
+                                <select asp-for="Lines[index].ProductId" class="form-select product-select">
+                                    <option value="0">-- Chọn sản phẩm --</option>
+                                    @foreach (var product in Model.Products)
+                                    {
+                                        <option value="@product.Id" data-supplier-id="@product.SupplierId">@product.Code · @product.Name</option>
+                                    }
+                                </select>
+                                <span asp-validation-for="Lines[index].ProductId" class="text-danger"></span>
+                            </td>
+                            <td><input asp-for="Lines[index].Quantity" class="form-control line-quantity" min="1" /><span asp-validation-for="Lines[index].Quantity" class="text-danger"></span></td>
+                            <td><input asp-for="Lines[index].UnitCost" class="form-control line-cost" min="0.01" step="0.01" /><span asp-validation-for="Lines[index].UnitCost" class="text-danger"></span></td>
+                            <td class="text-end fw-semibold line-total">0 ₫</td>
+                            <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger remove-line" aria-label="Xóa dòng">×</button></td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot><tr><td colspan="3" class="text-end fw-semibold">Tổng giá trị dự kiến</td><td class="text-end fw-bold" id="grand-total">0 ₫</td><td></td></tr></tfoot>
+            </table>
+        </div>
+    </section>
+
+    <div class="form-actions mt-3">
+        <a asp-action="Index" class="btn btn-outline-secondary">Hủy</a>
+        <button type="submit" class="btn btn-primary">Tạo phiếu chờ duyệt</button>
+    </div>
+</form>
+
+<template id="line-template">
+    <tr class="receipt-line">
+        <td><select name="Lines[__index__].ProductId" class="form-select product-select"><option value="0">-- Chọn sản phẩm --</option>@foreach (var product in Model.Products) {<option value="@product.Id" data-supplier-id="@product.SupplierId">@product.Code · @product.Name</option>}</select></td>
+        <td><input name="Lines[__index__].Quantity" value="1" type="number" class="form-control line-quantity" min="1" /></td>
+        <td><input name="Lines[__index__].UnitCost" value="0" type="number" class="form-control line-cost" min="0.01" step="0.01" /></td>
+        <td class="text-end fw-semibold line-total">0 ₫</td>
+        <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger remove-line" aria-label="Xóa dòng">×</button></td>
+    </tr>
+</template>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const body = document.getElementById('receipt-lines');
+            const form = document.getElementById('receipt-form');
+            const supplier = document.getElementById('supplier-select');
+            const template = document.getElementById('line-template');
+            const money = new Intl.NumberFormat('vi-VN');
+
+            function renumber() {
+                body.querySelectorAll('.receipt-line').forEach((row, index) => {
+                    row.querySelectorAll('[name]').forEach(input => {
+                        input.name = input.name.replace(/Lines\[\d+\]/, `Lines[${index}]`);
+                    });
+                });
+            }
+
+            function filterProducts() {
+                const supplierId = supplier.value;
+                body.querySelectorAll('.product-select').forEach(select => {
+                    [...select.options].forEach(option => {
+                        if (option.value === '0') return;
+                        option.hidden = option.dataset.supplierId !== supplierId;
+                    });
+                    const selected = select.selectedOptions[0];
+                    if (selected && selected.value !== '0' && selected.dataset.supplierId !== supplierId) select.value = '0';
+                });
+            }
+
+            function calculate() {
+                let grandTotal = 0;
+                body.querySelectorAll('.receipt-line').forEach(row => {
+                    const quantity = Number(row.querySelector('.line-quantity').value) || 0;
+                    const cost = Number(row.querySelector('.line-cost').value) || 0;
+                    const total = quantity * cost;
+                    grandTotal += total;
+                    row.querySelector('.line-total').textContent = `${money.format(total)} ₫`;
+                });
+                document.getElementById('grand-total').textContent = `${money.format(grandTotal)} ₫`;
+            }
+
+            function validateUniqueProducts() {
+                const seen = new Set();
+                let isValid = true;
+                body.querySelectorAll('.product-select').forEach(select => {
+                    select.setCustomValidity('');
+                    if (select.value !== '0') {
+                        if (seen.has(select.value)) {
+                            select.setCustomValidity('Mỗi sản phẩm chỉ được xuất hiện một lần.');
+                            isValid = false;
+                        }
+                        seen.add(select.value);
+                    }
+                });
+                return isValid;
+            }
+
+            document.getElementById('add-line').addEventListener('click', () => {
+                if (body.children.length >= 100) return;
+                const index = body.children.length;
+                const fragment = template.content.cloneNode(true);
+                fragment.querySelectorAll('[name]').forEach(input => input.name = input.name.replace('__index__', index));
+                body.appendChild(fragment);
+                filterProducts();
+                calculate();
+            });
+
+            body.addEventListener('click', event => {
+                const button = event.target.closest('.remove-line');
+                if (!button || body.children.length === 1) return;
+                button.closest('.receipt-line').remove();
+                renumber();
+                calculate();
+            });
+            body.addEventListener('input', calculate);
+            body.addEventListener('change', validateUniqueProducts);
+            supplier.addEventListener('change', filterProducts);
+            form.addEventListener('submit', event => {
+                if (!validateUniqueProducts()) {
+                    event.preventDefault();
+                    form.reportValidity();
+                }
+            });
+            filterProducts();
+            calculate();
+        })();
+    </script>
+}

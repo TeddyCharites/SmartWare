@@ -1,0 +1,104 @@
+@model SmartWare.Web.ViewModels.Products.ProductIndexViewModel
+@{
+    ViewData["Title"] = "Sản phẩm";
+    var stats = Model.Page.Statistics;
+    var results = Model.Page.Results;
+}
+
+<div class="page-heading">
+    <div><span class="eyebrow">HÀNG HÓA</span><h1>Sản phẩm</h1><p>Tra cứu danh mục hàng, giá bán và tồn khả dụng.</p></div>
+    <div class="d-flex gap-2">
+        <a asp-action="Export" asp-route-search="@Model.Search" asp-route-categoryId="@Model.CategoryId" asp-route-supplierId="@Model.SupplierId" asp-route-isActive="@Model.IsActive" class="btn btn-outline-secondary">Xuất Excel (.csv)</a>
+        @if (User.IsInRole(RoleNames.Admin))
+        {
+            <a asp-action="Create" class="btn btn-primary">+ Thêm sản phẩm</a>
+        }
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">@success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<section class="compact-metrics product-metrics">
+    <article><span>Tổng sản phẩm</span><strong>@stats.TotalProducts.ToString("N0")</strong></article>
+    <article><span>Đang kinh doanh</span><strong>@stats.ActiveProducts.ToString("N0")</strong></article>
+    <article><span>Sắp hết</span><strong class="text-warning-emphasis">@stats.LowStockProducts.ToString("N0")</strong></article>
+    <article><span>Hết hàng</span><strong class="text-danger">@stats.OutOfStockProducts.ToString("N0")</strong></article>
+    <article><span>Giá trị tồn</span><strong>@stats.InventoryValue.ToString("N0") ₫</strong></article>
+</section>
+
+<section class="panel">
+    <form method="get" class="filter-bar filter-bar-products">
+        <div class="filter-search"><label for="search" class="visually-hidden">Tìm kiếm</label><input id="search" name="search" value="@Model.Search" class="form-control" placeholder="Tìm tên, SKU, danh mục hoặc nhà cung cấp..." /></div>
+        <select name="categoryId" class="form-select" aria-label="Lọc danh mục">
+            <option value="">Tất cả danh mục</option>
+            @foreach (var category in Model.Page.Filters.Categories)
+            {
+                <option value="@category.Id" selected="@(Model.CategoryId == category.Id)">@category.Name@(!category.IsActive ? " (ngừng hoạt động)" : "")</option>
+            }
+        </select>
+        <select name="supplierId" class="form-select" aria-label="Lọc nhà cung cấp">
+            <option value="">Tất cả nhà cung cấp</option>
+            @foreach (var supplier in Model.Page.Filters.Suppliers)
+            {
+                <option value="@supplier.Id" selected="@(Model.SupplierId == supplier.Id)">@supplier.Name@(!supplier.IsActive ? " (ngừng hoạt động)" : "")</option>
+            }
+        </select>
+        <select name="isActive" class="form-select" aria-label="Lọc trạng thái">
+            <option value="">Tất cả trạng thái</option>
+            <option value="true" selected="@(Model.IsActive == true)">Đang kinh doanh</option>
+            <option value="false" selected="@(Model.IsActive == false)">Ngừng kinh doanh</option>
+        </select>
+        <button class="btn btn-outline-primary" type="submit">Lọc</button>
+        <a asp-action="Index" class="btn btn-link text-secondary">Đặt lại</a>
+    </form>
+    <div class="table-responsive">
+        <table class="table management-table product-table align-middle mb-0">
+            <thead><tr><th>Sản phẩm</th><th>Danh mục / NCC</th><th class="text-end">Giá vốn</th><th class="text-end">Giá bán</th><th class="text-center">Khả dụng</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr></thead>
+            <tbody>
+                @if (results.Items.Count == 0)
+                {
+                    <tr><td colspan="7"><div class="empty-state"><span>◇</span><strong>Không tìm thấy sản phẩm</strong><p>Thử thay đổi bộ lọc hoặc thêm sản phẩm mới.</p></div></td></tr>
+                }
+                else
+                {
+                    @foreach (var item in results.Items)
+                    {
+                        var isOut = item.AvailableQuantity <= 0;
+                        var isLow = item.AvailableQuantity <= item.MinimumStock;
+                        <tr>
+                            <td><div class="product-cell">
+                                @if (!string.IsNullOrWhiteSpace(item.ImageUrl)) { <img src="@item.ImageUrl" alt="Ảnh @item.Name" class="product-thumb" loading="lazy" decoding="async" /> }
+                                else { <span class="product-thumb product-placeholder">@item.Name[..1].ToUpperInvariant()</span> }
+                                <div><strong>@item.Name</strong><small>@item.Sku · @item.UnitOfMeasure</small></div>
+                            </div></td>
+                            <td><span class="d-block">@item.CategoryName</span><small class="text-secondary">@item.SupplierName</small></td>
+                            <td class="text-end">@item.AverageCost.ToString("N0") ₫</td>
+                            <td class="text-end fw-semibold">@item.SellingPrice.ToString("N0") ₫</td>
+                            <td class="text-center"><span class="stock-badge @(isOut ? "stock-out" : isLow ? "stock-low" : "stock-ok")">@item.AvailableQuantity.ToString("N0")</span></td>
+                            <td><span class="state-badge @(item.IsActive ? "state-active" : "state-inactive")">@(item.IsActive ? "Kinh doanh" : "Ngừng bán")</span></td>
+                            <td class="text-end table-actions">
+                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">Xem</a>
+                                @if (User.IsInRole(RoleNames.Admin))
+                                {
+                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
+                                    <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger">Xóa</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (results.TotalPages > 1)
+    {
+        <div class="pagination-bar"><span>Trang @results.Page / @results.TotalPages · @results.TotalCount kết quả</span><div class="btn-group"><a class="btn btn-sm btn-outline-secondary @(results.HasPreviousPage ? "" : "disabled")" asp-action="Index" asp-route-search="@Model.Search" asp-route-categoryId="@Model.CategoryId" asp-route-supplierId="@Model.SupplierId" asp-route-isActive="@Model.IsActive" asp-route-page="@(results.Page - 1)">Trước</a><a class="btn btn-sm btn-outline-secondary @(results.HasNextPage ? "" : "disabled")" asp-action="Index" asp-route-search="@Model.Search" asp-route-categoryId="@Model.CategoryId" asp-route-supplierId="@Model.SupplierId" asp-route-isActive="@Model.IsActive" asp-route-page="@(results.Page + 1)">Sau</a></div></div>
+    }
+</section>

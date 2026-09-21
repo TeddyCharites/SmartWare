@@ -1,0 +1,65 @@
+@model SmartWare.Web.ViewModels.Account.LoginViewModel
+@{
+    ViewData["Title"] = "Đăng nhập";
+}
+
+<section class="login-stage">
+    <div class="login-showcase">
+        <span class="login-kicker"><i></i> SMART WAREHOUSE PLATFORM</span>
+        <h1>Vận hành kho hàng<br /><span>thông minh hơn.</span></h1>
+        <p>Theo dõi tồn kho theo thời gian thực, kiểm soát luồng nhập xuất và khai thác dữ liệu bằng trợ lý AI.</p>
+        <div class="login-feature-grid">
+            <article><strong>Realtime</strong><span>Tồn kho chính xác</span></article>
+            <article><strong>Hybrid RAG</strong><span>Hỏi đáp theo dữ liệu</span></article>
+            <article><strong>Role-based</strong><span>Phân quyền an toàn</span></article>
+        </div>
+        <div class="login-orbit" aria-hidden="true">
+            <span class="orbit-core">
+                <svg viewBox="0 0 24 24"><path d="M3 7.2 12 3l9 4.2v9.6L12 21l-9-4.2V7.2Zm9-2L6.1 8 12 10.8 17.9 8 12 5.2ZM5 9.6v5.9l6 2.8v-5.9L5 9.6Zm8 8.7 6-2.8V9.6l-6 2.8v5.9Z"/></svg>
+            </span>
+        </div>
+    </div>
+
+    <div class="login-card-wrap">
+        <div class="login-card">
+            <div class="login-card-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2v1h2.5A3.5 3.5 0 0 1 20 8.5v8a3.5 3.5 0 0 1-3.5 3.5h-9A3.5 3.5 0 0 1 4 16.5v-8A3.5 3.5 0 0 1 7.5 5H10V4a2 2 0 0 1 2-2ZM9 10a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg>
+            </div>
+            <span class="login-card-eyebrow">WELCOME BACK</span>
+            <h2>Đăng nhập SmartWare</h2>
+            <p>Sử dụng tài khoản được cấp để tiếp tục.</p>
+
+            <form method="post" asp-action="Login" asp-route-returnUrl="@Model.ReturnUrl">
+                <input asp-for="ReturnUrl" type="hidden" />
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small" role="alert"></div>
+
+                <div class="form-floating mb-3">
+                    <input asp-for="Email" class="form-control" autocomplete="username" placeholder="name@example.com" autofocus />
+                    <label asp-for="Email"></label>
+                    <span asp-validation-for="Email" class="text-danger"></span>
+                </div>
+
+                <div class="form-floating mb-3">
+                    <input asp-for="Password" class="form-control" autocomplete="current-password" placeholder="Mật khẩu" />
+                    <label asp-for="Password"></label>
+                    <span asp-validation-for="Password" class="text-danger"></span>
+                </div>
+
+                <div class="form-check mb-4">
+                    <input asp-for="RememberMe" class="form-check-input" />
+                    <label asp-for="RememberMe" class="form-check-label"></label>
+                </div>
+
+                <button type="submit" class="btn btn-primary login-submit w-100">
+                    <span>Đăng nhập hệ thống</span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 5-1.4 1.4 4.6 4.6H4v2h12.2l-4.6 4.6L13 19l7-7-7-7Z"/></svg>
+                </button>
+            </form>
+            <small class="login-security">Dữ liệu được bảo vệ theo vai trò người dùng</small>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

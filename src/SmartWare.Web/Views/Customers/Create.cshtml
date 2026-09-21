@@ -1,0 +1,7 @@
+@model SmartWare.Web.ViewModels.Customers.CustomerFormViewModel
+@{ ViewData["Title"] = "Thêm khách hàng"; }
+<div class="form-page form-page-wide">
+    <div class="form-page-header"><div><span class="eyebrow">KHÁCH HÀNG</span><h1>Thêm khách hàng</h1><p>Tạo hồ sơ khách hàng mới cho quy trình đơn hàng.</p></div><a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a></div>
+    <form method="post" class="panel form-panel"><div class="panel-body"><partial name="_Form" model="Model" /></div><div class="form-actions"><a asp-action="Index" class="btn btn-light">Hủy</a><button type="submit" class="btn btn-primary">Lưu khách hàng</button></div></form>
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

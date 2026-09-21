@@ -1,0 +1,7 @@
+@model SmartWare.Application.Catalog.Products.ProductDetails
+@{ ViewData["Title"] = "Xóa sản phẩm"; }
+<div class="confirm-page"><section class="panel confirm-card"><div class="confirm-icon">!</div><span class="eyebrow">XÁC NHẬN</span><h1>Xóa “@Model.Name”?</h1>
+    <p>Nếu sản phẩm đã phát sinh tồn kho, đơn hàng hoặc chứng từ, hệ thống sẽ chuyển sang <strong>ngừng kinh doanh</strong> thay vì xóa lịch sử.</p>
+    <div class="confirm-facts"><span>SKU <strong>@Model.Sku</strong></span><span>Tồn thực tế <strong>@Model.CurrentQuantity.ToString("N0")</strong></span></div>
+    <form method="post" class="d-flex justify-content-center gap-2 mt-4"><a asp-action="Index" class="btn btn-light">Hủy</a><button type="submit" class="btn btn-danger">Xác nhận xử lý</button></form>
+</section></div>

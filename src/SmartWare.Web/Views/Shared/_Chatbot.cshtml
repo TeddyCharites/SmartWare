@@ -1,0 +1,56 @@
+@{
+    var canViewReports = User.IsInRole(RoleNames.Admin) || User.IsInRole(RoleNames.Manager);
+}
+<div class="chatbot" data-chatbot>
+    <section class="chatbot-panel" data-chatbot-panel aria-label="Trợ lý AI Kho" aria-hidden="true">
+        <header class="chatbot-header">
+            <span class="chatbot-avatar" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2v1h2.5A3.5 3.5 0 0 1 20 8.5v8a3.5 3.5 0 0 1-3.5 3.5h-9A3.5 3.5 0 0 1 4 16.5v-8A3.5 3.5 0 0 1 7.5 5H10V4a2 2 0 0 1 2-2ZM7.5 7A1.5 1.5 0 0 0 6 8.5v8A1.5 1.5 0 0 0 7.5 18h9a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 16.5 7h-9ZM9 10a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm6 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm-6 5h6v1H9v-1Z"/></svg>
+            </span>
+            <div><strong>Trợ lý AI Kho</strong><small>Gemini · Hybrid RAG · theo role</small></div>
+            <div class="chatbot-header-actions">
+                <button type="button" data-chatbot-history aria-label="Lịch sử chat" title="Lịch sử">☰</button>
+                <button type="button" data-chatbot-new aria-label="Cuộc trò chuyện mới" title="Chat mới">＋</button>
+                <button type="button" class="chatbot-close" data-chatbot-close aria-label="Đóng trợ lý">×</button>
+            </div>
+        </header>
+
+        <aside class="chatbot-history" data-chatbot-history-panel hidden>
+            <div class="chatbot-history-heading"><strong>Lịch sử trò chuyện</strong><button type="button" data-chatbot-history-close>Đóng</button></div>
+            <div class="chatbot-history-list" data-chatbot-history-list></div>
+        </aside>
+
+        <div class="chatbot-messages" data-chatbot-messages aria-live="polite">
+            <div class="chatbot-message assistant" data-chatbot-welcome>
+                <div>Xin chào! Tôi có thể tra cứu dữ liệu kho và tìm câu trả lời trong kho tri thức bằng RAG. Mỗi cuộc trò chuyện được lưu riêng cho tài khoản của bạn.</div>
+            </div>
+        </div>
+
+        <div class="chatbot-suggestions" data-chatbot-suggestions>
+            <button type="button" data-chatbot-prompt="Sản phẩm nào sắp hết hàng?">Hàng sắp hết</button>
+            <button type="button" data-chatbot-prompt="Quy trình nhập kho chuẩn gồm những bước nào?">Quy trình nhập kho</button>
+            <button type="button" data-chatbot-prompt="Phân tích dữ liệu nhập xuất 30 ngày gần nhất">Nhập–xuất 30 ngày</button>
+            <button type="button" data-chatbot-prompt="Cho tôi tổng quan tồn kho hiện tại">Tổng quan tồn kho</button>
+            @if (canViewReports)
+            {
+                <button type="button" data-chatbot-prompt="Tóm tắt báo cáo kho 30 ngày gần nhất">Báo cáo 30 ngày</button>
+            }
+        </div>
+
+        <form class="chatbot-form" data-chatbot-form>
+            @Html.AntiForgeryToken()
+            <label class="visually-hidden" for="chatbotMessage">Câu hỏi cho trợ lý kho</label>
+            <textarea id="chatbotMessage" data-chatbot-input maxlength="1000" rows="2"
+                      placeholder="Hỏi tự do về dữ liệu hoặc quy trình kho..."></textarea>
+            <button type="submit" data-chatbot-send aria-label="Gửi câu hỏi">
+                <svg viewBox="0 0 24 24"><path d="m3 20 18-8L3 4v6l12 2-12 2v6Z"/></svg>
+            </button>
+        </form>
+        <div class="chatbot-footnote">AI có thể diễn giải sai; hãy đối chiếu nguồn SQL/RAG hiển thị.</div>
+    </section>
+
+    <button type="button" class="chatbot-launcher" data-chatbot-open aria-label="Mở Trợ lý AI Kho" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a2 2 0 0 1 2 2v1h2.5A3.5 3.5 0 0 1 20 8.5v8a3.5 3.5 0 0 1-3.5 3.5h-9A3.5 3.5 0 0 1 4 16.5v-8A3.5 3.5 0 0 1 7.5 5H10V4a2 2 0 0 1 2-2ZM9 10a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm-6 5v1h6v-1H9Z"/></svg>
+        <span>AI Kho</span>
+    </button>
+</div>

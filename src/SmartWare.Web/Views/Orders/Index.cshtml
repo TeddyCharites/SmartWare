@@ -1,0 +1,96 @@
+@model SmartWare.Web.ViewModels.Orders.OrderIndexViewModel
+@{
+    ViewData["Title"] = "Đơn hàng";
+    var stats = Model.Page.Statistics;
+    var results = Model.Page.Results;
+    string StatusText(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "Chờ xử lý",
+        OrderStatus.Processing => "Đang xử lý",
+        OrderStatus.Shipping => "Đang giao",
+        OrderStatus.Completed => "Hoàn thành",
+        OrderStatus.Cancelled => "Đã hủy",
+        OrderStatus.DeliveryFailed => "Giao thất bại",
+        OrderStatus.Returned => "Đã hoàn",
+        _ => status.ToString()
+    };
+    string StatusClass(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "receipt-pending",
+        OrderStatus.Processing => "receipt-approved",
+        OrderStatus.Shipping => "order-shipping",
+        OrderStatus.Completed => "receipt-completed",
+        OrderStatus.Cancelled or OrderStatus.DeliveryFailed => "receipt-rejected",
+        _ => "receipt-cancelled"
+    };
+}
+
+<div class="page-heading">
+    <div><span class="eyebrow">BÁN HÀNG</span><h1>Đơn hàng</h1><p>Theo dõi vòng đời đơn và liên kết với phiếu xuất kho.</p></div>
+    <div class="d-flex gap-2"><a asp-action="Export" asp-route-search="@Model.Search" asp-route-status="@Model.Status" asp-route-fromDate="@Model.FromDate" asp-route-toDate="@Model.ToDate" class="btn btn-outline-secondary">Xuất Excel (.csv)</a><a asp-action="Create" class="btn btn-primary">+ Tạo đơn hàng</a></div>
+</div>
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">@success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<section class="compact-metrics order-metrics">
+    <article><span>Tổng đơn</span><strong>@stats.TotalOrders.ToString("N0")</strong></article>
+    <article><span>Chờ xử lý</span><strong class="text-warning-emphasis">@stats.PendingOrders.ToString("N0")</strong></article>
+    <article><span>Đang xử lý</span><strong class="text-primary">@stats.ProcessingOrders.ToString("N0")</strong></article>
+    <article><span>Đang giao</span><strong>@stats.ShippingOrders.ToString("N0")</strong></article>
+    <article><span>Hoàn thành</span><strong class="text-success">@stats.CompletedOrders.ToString("N0")</strong></article>
+    <article><span>Doanh thu hoàn thành</span><strong>@stats.CompletedRevenue.ToString("N0") ₫</strong></article>
+</section>
+
+<section class="panel">
+    <form method="get" class="filter-bar order-filter-bar">
+        <div class="filter-search"><label for="search" class="visually-hidden">Tìm kiếm</label><input id="search" name="search" value="@Model.Search" class="form-control" placeholder="Tìm mã đơn hoặc khách hàng..." /></div>
+        <select name="status" class="form-select" aria-label="Lọc trạng thái">
+            <option value="">Tất cả trạng thái</option>
+            @foreach (var status in Enum.GetValues<OrderStatus>())
+            {
+                <option value="@status" selected="@(Model.Status == status)">@StatusText(status)</option>
+            }
+        </select>
+        <input type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control receipt-date" aria-label="Từ ngày" />
+        <input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control receipt-date" aria-label="Đến ngày" />
+        <button class="btn btn-outline-primary" type="submit">Lọc</button><a asp-action="Index" class="btn btn-link text-secondary">Đặt lại</a>
+    </form>
+    <div class="table-responsive">
+        <table class="table management-table align-middle mb-0">
+            <thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Ngày đặt</th><th class="text-end">Số lượng</th><th class="text-end">Tổng tiền</th><th>Phiếu xuất</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr></thead>
+            <tbody>
+            @if (results.Items.Count == 0)
+            {
+                <tr><td colspan="8"><div class="empty-state"><span>◇</span><strong>Không tìm thấy đơn hàng</strong><p>Thử thay đổi bộ lọc hoặc tạo đơn hàng mới.</p></div></td></tr>
+            }
+            else
+            {
+                @foreach (var item in results.Items)
+                {
+                    <tr>
+                        <td><strong>@item.OrderNumber</strong><small class="d-block text-secondary">@item.CreatedByName</small></td>
+                        <td>@item.CustomerName</td>
+                        <td>@item.OrderDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                        <td class="text-end">@item.TotalQuantity.ToString("N0")</td>
+                        <td class="text-end fw-semibold">@item.TotalAmount.ToString("N0") ₫</td>
+                        <td>@(item.ExportReceiptNumber ?? "—")</td>
+                        <td><span class="receipt-status @StatusClass(item.Status)">@StatusText(item.Status)</span></td>
+                        <td class="text-end"><a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">Xem</a></td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+    @if (results.TotalPages > 1)
+    {
+        <div class="pagination-bar"><span>Trang @results.Page / @results.TotalPages · @results.TotalCount kết quả</span><div class="btn-group"><a class="btn btn-sm btn-outline-secondary @(results.HasPreviousPage ? "" : "disabled")" asp-action="Index" asp-route-search="@Model.Search" asp-route-status="@Model.Status" asp-route-fromDate="@Model.FromDate" asp-route-toDate="@Model.ToDate" asp-route-page="@(results.Page - 1)">Trước</a><a class="btn btn-sm btn-outline-secondary @(results.HasNextPage ? "" : "disabled")" asp-action="Index" asp-route-search="@Model.Search" asp-route-status="@Model.Status" asp-route-fromDate="@Model.FromDate" asp-route-toDate="@Model.ToDate" asp-route-page="@(results.Page + 1)">Sau</a></div></div>
+    }
+</section>

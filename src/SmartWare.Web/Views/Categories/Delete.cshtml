@@ -1,0 +1,22 @@
+@model SmartWare.Application.Catalog.Categories.CategoryDetails
+@{ ViewData["Title"] = "Xóa danh mục"; }
+
+<div class="confirm-page">
+    <section class="panel confirm-card">
+        <div class="confirm-icon">!</div>
+        <span class="eyebrow">XÁC NHẬN</span>
+        <h1>Xóa danh mục “@Model.Name”?</h1>
+        @if (Model.ProductCount > 0)
+        {
+            <p>Danh mục đang được <strong>@Model.ProductCount sản phẩm</strong> sử dụng. Hệ thống sẽ chuyển danh mục sang ngừng hoạt động để bảo toàn dữ liệu.</p>
+        }
+        else
+        {
+            <p>Danh mục chưa được sử dụng và sẽ bị xóa khỏi hệ thống. Thao tác này không thể hoàn tác.</p>
+        }
+        <form method="post" class="d-flex justify-content-center gap-2 mt-4">
+            <a asp-action="Index" class="btn btn-light">Hủy</a>
+            <button type="submit" class="btn btn-danger">@(Model.ProductCount > 0 ? "Ngừng hoạt động" : "Xóa danh mục")</button>
+        </form>
+    </section>
+</div>

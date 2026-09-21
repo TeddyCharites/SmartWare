@@ -1,0 +1,67 @@
+@model SmartWare.Web.ViewModels.Knowledge.KnowledgeIndexViewModel
+@{
+    ViewData["Title"] = "Kho tri thức RAG";
+}
+
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">HYBRID RAG</span>
+        <h1>Kho tri thức</h1>
+        <p>Quản lý tài liệu, phạm vi role và vector embedding dùng cho chatbot.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <form asp-action="Reindex" method="post">
+            <button class="btn btn-outline-primary" type="submit">Lập chỉ mục lại tất cả</button>
+        </form>
+        <a asp-action="Create" class="btn btn-primary">+ Thêm tài liệu</a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="alert alert-success">@success</div>
+}
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger">@error</div>
+}
+
+<section class="panel">
+    <div class="table-responsive">
+        <table class="table management-table align-middle mb-0">
+            <thead>
+                <tr><th>Tài liệu</th><th>Nhóm / phiên bản</th><th>Phạm vi</th><th>Embedding</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr>
+            </thead>
+            <tbody>
+                @if (Model.Documents.Count == 0)
+                {
+                    <tr><td colspan="6"><div class="empty-state"><strong>Chưa có tài liệu RAG</strong><p>Thêm tài liệu để chatbot có thể truy xuất kiến thức ngoài số liệu SQL.</p></div></td></tr>
+                }
+                else
+                {
+                    @foreach (var item in Model.Documents)
+                    {
+                        <tr>
+                            <td><strong>@item.Title</strong><div class="small text-secondary">Tạo @item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div></td>
+                            <td>@item.Category<div class="small text-secondary">v@item.Version</div></td>
+                            <td><span class="number-chip">@item.AllowedRoles</span></td>
+                            <td><strong>@item.EmbeddedChunkCount/@item.ChunkCount</strong> đoạn</td>
+                            <td><span class="state-badge @(item.IsActive ? "state-active" : "state-inactive")">@(item.IsActive ? "Đang dùng" : "Tạm dừng")</span></td>
+                            <td class="text-end table-actions">
+                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">Xem nội dung</a>
+                                <form asp-action="Reindex" method="post" class="d-inline">
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <button class="btn btn-sm btn-outline-primary" type="submit">Lập chỉ mục</button>
+                                </form>
+                                <form asp-action="SetActive" asp-route-id="@item.Id" method="post" class="d-inline">
+                                    <input type="hidden" name="isActive" value="@(!item.IsActive)" />
+                                    <button class="btn btn-sm @(item.IsActive ? "btn-outline-danger" : "btn-outline-success")" type="submit">@(item.IsActive ? "Tạm dừng" : "Kích hoạt")</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

@@ -1,0 +1,11 @@
+@model SmartWare.Web.ViewModels.Categories.CategoryFormViewModel
+@{ ViewData["Title"] = "Thêm danh mục"; }
+
+<div class="form-page">
+    <div class="form-page-header"><div><span class="eyebrow">DANH MỤC</span><h1>Thêm danh mục</h1><p>Tạo nhóm phân loại mới cho sản phẩm.</p></div><a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a></div>
+    <form method="post" class="panel form-panel">
+        <div class="panel-body"><partial name="_Form" model="Model" /></div>
+        <div class="form-actions"><a asp-action="Index" class="btn btn-light">Hủy</a><button type="submit" class="btn btn-primary">Lưu danh mục</button></div>
+    </form>
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

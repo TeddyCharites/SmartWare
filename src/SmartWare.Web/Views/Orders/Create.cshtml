@@ -1,0 +1,87 @@
+@model SmartWare.Web.ViewModels.Orders.CreateOrderViewModel
+@{ ViewData["Title"] = "Tạo đơn hàng"; }
+
+<div class="form-page-header">
+    <div><span class="eyebrow">BÁN HÀNG</span><h1>Tạo đơn hàng</h1><p>Đơn mới ở trạng thái chờ xử lý và chưa giữ tồn kho.</p></div>
+    <a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a>
+</div>
+
+<form asp-action="Create" method="post" id="order-form">
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+    <section class="panel form-panel">
+        <div class="panel-header"><div><h2>Thông tin đơn hàng</h2><p>Chọn khách hàng đang hoạt động và thời điểm đặt hàng.</p></div></div>
+        <div class="row g-3 p-3 pt-0">
+            <div class="col-md-7"><label asp-for="CustomerId" class="form-label"></label><select asp-for="CustomerId" class="form-select"><option value="0">-- Chọn khách hàng --</option>@foreach (var customer in Model.Customers) {<option value="@customer.Id">@customer.Code · @customer.Name</option>}</select><span asp-validation-for="CustomerId" class="text-danger"></span></div>
+            <div class="col-md-5"><label asp-for="OrderDate" class="form-label"></label><input asp-for="OrderDate" asp-format="{0:yyyy-MM-ddTHH:mm}" type="datetime-local" class="form-control" /><span asp-validation-for="OrderDate" class="text-danger"></span></div>
+        </div>
+    </section>
+
+    <section class="panel mt-3">
+        <div class="panel-header"><div><h2>Chi tiết sản phẩm</h2><p>Giá bán được gợi ý từ danh mục và có thể điều chỉnh trước khi lưu.</p></div><button type="button" class="btn btn-sm btn-outline-primary" id="add-order-line">+ Thêm dòng</button></div>
+        <span asp-validation-for="Lines" class="text-danger d-block px-3"></span>
+        <div class="table-responsive">
+            <table class="table management-table receipt-lines-table align-middle mb-0">
+                <thead><tr><th>Sản phẩm</th><th class="text-end">Khả dụng</th><th class="quantity-column">Số lượng</th><th class="cost-column">Đơn giá</th><th class="text-end">Thành tiền</th><th></th></tr></thead>
+                <tbody id="order-lines">
+                @for (var index = 0; index < Model.Lines.Count; index++)
+                {
+                    <tr class="order-line">
+                        <td><select asp-for="Lines[index].ProductId" class="form-select order-product-select"><option value="0">-- Chọn sản phẩm --</option>@foreach (var product in Model.Products) {<option value="@product.Id" data-price="@product.SellingPrice" data-available="@product.AvailableQuantity">@product.Sku · @product.Name (@product.UnitOfMeasure)</option>}</select><span asp-validation-for="Lines[index].ProductId" class="text-danger"></span></td>
+                        <td class="text-end line-available">0</td>
+                        <td><input asp-for="Lines[index].Quantity" class="form-control order-line-quantity" min="1" /><span asp-validation-for="Lines[index].Quantity" class="text-danger"></span></td>
+                        <td><input asp-for="Lines[index].UnitPrice" class="form-control order-line-price" min="0" step="0.01" /><span asp-validation-for="Lines[index].UnitPrice" class="text-danger"></span></td>
+                        <td class="text-end fw-semibold line-total">0 ₫</td>
+                        <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger remove-order-line" aria-label="Xóa dòng">×</button></td>
+                    </tr>
+                }
+                </tbody>
+                <tfoot><tr><td colspan="4" class="text-end fw-semibold">Tổng tiền</td><td class="text-end fw-bold" id="order-grand-total">0 ₫</td><td></td></tr></tfoot>
+            </table>
+        </div>
+    </section>
+    <div class="form-actions mt-3"><a asp-action="Index" class="btn btn-outline-secondary">Hủy</a><button type="submit" class="btn btn-primary">Tạo đơn hàng</button></div>
+</form>
+
+<template id="order-line-template">
+    <tr class="order-line"><td><select name="Lines[__index__].ProductId" class="form-select order-product-select"><option value="0">-- Chọn sản phẩm --</option>@foreach (var product in Model.Products) {<option value="@product.Id" data-price="@product.SellingPrice" data-available="@product.AvailableQuantity">@product.Sku · @product.Name (@product.UnitOfMeasure)</option>}</select></td><td class="text-end line-available">0</td><td><input name="Lines[__index__].Quantity" value="1" type="number" class="form-control order-line-quantity" min="1" /></td><td><input name="Lines[__index__].UnitPrice" value="0" type="number" class="form-control order-line-price" min="0" step="0.01" /></td><td class="text-end fw-semibold line-total">0 ₫</td><td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger remove-order-line" aria-label="Xóa dòng">×</button></td></tr>
+</template>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const body = document.getElementById('order-lines');
+            const form = document.getElementById('order-form');
+            const template = document.getElementById('order-line-template');
+            const money = new Intl.NumberFormat('vi-VN');
+            function renumber() { body.querySelectorAll('.order-line').forEach((row, index) => row.querySelectorAll('[name]').forEach(input => input.name = input.name.replace(/Lines\[\d+\]/, `Lines[${index}]`))); }
+            function calculate() {
+                let grand = 0;
+                body.querySelectorAll('.order-line').forEach(row => {
+                    const option = row.querySelector('.order-product-select').selectedOptions[0];
+                    const quantity = Number(row.querySelector('.order-line-quantity').value) || 0;
+                    const price = Number(row.querySelector('.order-line-price').value) || 0;
+                    const total = quantity * price; grand += total;
+                    row.querySelector('.line-available').textContent = money.format(Number(option?.dataset.available) || 0);
+                    row.querySelector('.line-total').textContent = `${money.format(total)} ₫`;
+                });
+                document.getElementById('order-grand-total').textContent = `${money.format(grand)} ₫`;
+            }
+            function validateUnique() {
+                const seen = new Set(); let valid = true;
+                body.querySelectorAll('.order-product-select').forEach(select => { select.setCustomValidity(''); if (select.value !== '0') { if (seen.has(select.value)) { select.setCustomValidity('Mỗi sản phẩm chỉ được xuất hiện một lần.'); valid = false; } seen.add(select.value); } });
+                return valid;
+            }
+            body.addEventListener('change', event => {
+                const select = event.target.closest('.order-product-select');
+                if (select) { const row = select.closest('.order-line'); row.querySelector('.order-line-price').value = select.selectedOptions[0]?.dataset.price || '0'; }
+                calculate(); validateUnique();
+            });
+            body.addEventListener('input', calculate);
+            body.addEventListener('click', event => { const button = event.target.closest('.remove-order-line'); if (!button || body.children.length === 1) return; button.closest('.order-line').remove(); renumber(); calculate(); });
+            document.getElementById('add-order-line').addEventListener('click', () => { if (body.children.length >= 100) return; const fragment = template.content.cloneNode(true); fragment.querySelectorAll('[name]').forEach(input => input.name = input.name.replace('__index__', body.children.length)); body.appendChild(fragment); calculate(); });
+            form.addEventListener('submit', event => { if (!validateUnique()) { event.preventDefault(); form.reportValidity(); } });
+            calculate();
+        })();
+    </script>
+}

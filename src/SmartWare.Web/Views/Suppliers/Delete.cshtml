@@ -1,0 +1,7 @@
+@model SmartWare.Application.Catalog.Suppliers.SupplierDetails
+@{ ViewData["Title"] = "Xóa nhà cung cấp"; var referenced = Model.ProductCount > 0 || Model.ReceiptCount > 0; }
+<div class="confirm-page"><section class="panel confirm-card"><div class="confirm-icon">!</div><span class="eyebrow">XÁC NHẬN</span><h1>Xóa “@Model.Name”?</h1>
+    @if (referenced) { <p>Nhà cung cấp đã có <strong>@Model.ProductCount sản phẩm</strong> hoặc <strong>@Model.ReceiptCount phiếu nhập</strong>. Hệ thống sẽ chuyển sang ngừng hoạt động để bảo toàn lịch sử.</p> }
+    else { <p>Nhà cung cấp chưa được sử dụng và sẽ bị xóa khỏi hệ thống. Thao tác này không thể hoàn tác.</p> }
+    <form method="post" class="d-flex justify-content-center gap-2 mt-4"><a asp-action="Index" class="btn btn-light">Hủy</a><button type="submit" class="btn btn-danger">@(referenced ? "Ngừng hoạt động" : "Xóa nhà cung cấp")</button></form>
+</section></div>

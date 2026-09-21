@@ -1,0 +1,103 @@
+@model SmartWare.Web.ViewModels.ImportReceipts.ImportReceiptIndexViewModel
+@{
+    ViewData["Title"] = "Phiếu nhập kho";
+    var stats = Model.Page.Statistics;
+    var results = Model.Page.Results;
+    string StatusText(ReceiptStatus status) => status switch
+    {
+        ReceiptStatus.Pending => "Chờ duyệt",
+        ReceiptStatus.Approved => "Đã duyệt",
+        ReceiptStatus.Rejected => "Từ chối",
+        ReceiptStatus.Completed => "Hoàn tất",
+        ReceiptStatus.Cancelled => "Đã hủy",
+        _ => status.ToString()
+    };
+    string StatusClass(ReceiptStatus status) => status switch
+    {
+        ReceiptStatus.Pending => "receipt-pending",
+        ReceiptStatus.Approved => "receipt-approved",
+        ReceiptStatus.Rejected => "receipt-rejected",
+        ReceiptStatus.Completed => "receipt-completed",
+        _ => "receipt-cancelled"
+    };
+}
+
+<div class="page-heading">
+    <div><span class="eyebrow">NHẬP HÀNG</span><h1>Phiếu nhập kho</h1><p>Theo dõi quy trình tạo, duyệt và cập nhật hàng vào kho.</p></div>
+    @if (User.IsInRole(RoleNames.Admin) || User.IsInRole(RoleNames.Employee))
+    {
+        <a asp-action="Create" class="btn btn-primary">+ Tạo phiếu nhập</a>
+    }
+</div>
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">@success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<section class="compact-metrics receipt-metrics">
+    <article><span>Tổng phiếu</span><strong>@stats.TotalReceipts.ToString("N0")</strong></article>
+    <article><span>Chờ duyệt</span><strong class="text-warning-emphasis">@stats.PendingReceipts.ToString("N0")</strong></article>
+    <article><span>Đã duyệt</span><strong class="text-primary">@stats.ApprovedReceipts.ToString("N0")</strong></article>
+    <article><span>Hoàn tất</span><strong class="text-success">@stats.CompletedReceipts.ToString("N0")</strong></article>
+    <article><span>Giá trị đã nhập</span><strong>@stats.CompletedValue.ToString("N0") ₫</strong></article>
+</section>
+
+<section class="panel">
+    <form method="get" class="filter-bar receipt-filter-bar">
+        <div class="filter-search"><label for="search" class="visually-hidden">Tìm kiếm</label><input id="search" name="search" value="@Model.Search" class="form-control" placeholder="Mã phiếu, nhà cung cấp hoặc người tạo..." /></div>
+        <select name="supplierId" class="form-select" aria-label="Lọc nhà cung cấp">
+            <option value="">Tất cả nhà cung cấp</option>
+            @foreach (var supplier in Model.Page.Suppliers)
+            {
+                <option value="@supplier.Id" selected="@(Model.SupplierId == supplier.Id)">@supplier.Name</option>
+            }
+        </select>
+        <select name="status" class="form-select" aria-label="Lọc trạng thái">
+            <option value="">Tất cả trạng thái</option>
+            @foreach (var status in Enum.GetValues<ReceiptStatus>())
+            {
+                <option value="@status" selected="@(Model.Status == status)">@StatusText(status)</option>
+            }
+        </select>
+        <input type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control receipt-date" aria-label="Từ ngày" />
+        <input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control receipt-date" aria-label="Đến ngày" />
+        <button class="btn btn-outline-primary" type="submit">Lọc</button>
+        <a asp-action="Index" class="btn btn-link text-secondary">Đặt lại</a>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table management-table align-middle mb-0">
+            <thead><tr><th>Mã phiếu</th><th>Nhà cung cấp / Kho</th><th>Người tạo</th><th class="text-end">Số lượng</th><th class="text-end">Giá trị</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr></thead>
+            <tbody>
+                @if (results.Items.Count == 0)
+                {
+                    <tr><td colspan="7"><div class="empty-state"><span>◇</span><strong>Chưa có phiếu nhập phù hợp</strong><p>Thử thay đổi bộ lọc hoặc tạo phiếu nhập mới.</p></div></td></tr>
+                }
+                else
+                {
+                    @foreach (var item in results.Items)
+                    {
+                        <tr>
+                            <td><strong>@item.ReceiptNumber</strong><small class="d-block text-secondary">@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small></td>
+                            <td><span class="d-block">@item.SupplierName</span><small class="text-secondary">@item.WarehouseName</small></td>
+                            <td>@item.CreatedByName</td>
+                            <td class="text-end">@item.TotalQuantity.ToString("N0")</td>
+                            <td class="text-end fw-semibold">@item.TotalValue.ToString("N0") ₫</td>
+                            <td><span class="receipt-status @StatusClass(item.Status)">@StatusText(item.Status)</span></td>
+                            <td class="text-end"><a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">Xem</a></td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (results.TotalPages > 1)
+    {
+        <div class="pagination-bar"><span>Trang @results.Page / @results.TotalPages · @results.TotalCount kết quả</span><div class="btn-group"><a class="btn btn-sm btn-outline-secondary @(results.HasPreviousPage ? "" : "disabled")" asp-action="Index" asp-route-search="@Model.Search" asp-route-supplierId="@Model.SupplierId" asp-route-status="@Model.Status" asp-route-fromDate="@Model.FromDate" asp-route-toDate="@Model.ToDate" asp-route-page="@(results.Page - 1)">Trước</a><a class="btn btn-sm btn-outline-secondary @(results.HasNextPage ? "" : "disabled")" asp-action="Index" asp-route-search="@Model.Search" asp-route-supplierId="@Model.SupplierId" asp-route-status="@Model.Status" asp-route-fromDate="@Model.FromDate" asp-route-toDate="@Model.ToDate" asp-route-page="@(results.Page + 1)">Sau</a></div></div>
+    }
+</section>

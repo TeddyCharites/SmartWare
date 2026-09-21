@@ -1,0 +1,11 @@
+@model SmartWare.Web.ViewModels.Orders.ChangeOrderStatusViewModel
+@{
+    var label = ViewData["Label"]?.ToString() ?? "Cập nhật";
+    var buttonClass = ViewData["Class"]?.ToString() ?? "btn-outline-primary";
+}
+<form asp-action="ChangeStatus" method="post">
+    <input asp-for="Id" type="hidden" />
+    <input asp-for="RowVersion" type="hidden" />
+    <input asp-for="TargetStatus" type="hidden" />
+    <button type="submit" class="btn @buttonClass w-100">@label</button>
+</form>

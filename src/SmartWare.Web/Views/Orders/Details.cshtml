@@ -1,0 +1,118 @@
+@model SmartWare.Application.Sales.Orders.OrderDetails
+@{
+    ViewData["Title"] = $"Đơn hàng {Model.OrderNumber}";
+    string StatusText(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "Chờ xử lý",
+        OrderStatus.Processing => "Đang xử lý",
+        OrderStatus.Shipping => "Đang giao",
+        OrderStatus.Completed => "Hoàn thành",
+        OrderStatus.Cancelled => "Đã hủy",
+        OrderStatus.DeliveryFailed => "Giao thất bại",
+        OrderStatus.Returned => "Đã hoàn",
+        _ => status.ToString()
+    };
+    string StatusClass(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "receipt-pending",
+        OrderStatus.Processing => "receipt-approved",
+        OrderStatus.Shipping => "order-shipping",
+        OrderStatus.Completed => "receipt-completed",
+        OrderStatus.Cancelled or OrderStatus.DeliveryFailed => "receipt-rejected",
+        _ => "receipt-cancelled"
+    };
+    string ReceiptStatusText(ReceiptStatus status) => status switch
+    {
+        ReceiptStatus.Pending => "Chờ duyệt",
+        ReceiptStatus.Approved => "Đã giữ hàng",
+        ReceiptStatus.Rejected => "Từ chối",
+        ReceiptStatus.Completed => "Hoàn tất",
+        _ => "Đã hủy"
+    };
+}
+
+<div class="form-page-header">
+    <div><span class="eyebrow">ĐƠN HÀNG</span><h1>@Model.OrderNumber</h1><p>Tạo bởi @Model.CreatedByName · @Model.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p></div>
+    <div class="d-flex align-items-center gap-2"><span class="receipt-status @StatusClass(Model.Status)">@StatusText(Model.Status)</span><a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a></div>
+</div>
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">@success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<section class="panel order-summary">
+    <div><span>Khách hàng</span><strong>@Model.CustomerName</strong><small>@Model.CustomerCode · @(Model.CustomerPhone ?? "Chưa có SĐT")</small></div>
+    <div><span>Ngày đặt</span><strong>@Model.OrderDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</strong></div>
+    <div><span>Tổng số lượng</span><strong>@Model.TotalQuantity.ToString("N0")</strong></div>
+    <div><span>Tổng tiền</span><strong>@Model.TotalAmount.ToString("N0") ₫</strong></div>
+</section>
+
+<div class="order-detail-layout mt-3">
+    <div>
+        <section class="panel">
+            <div class="panel-header"><div><h2>Sản phẩm đặt hàng</h2><p>@Model.Lines.Count dòng sản phẩm</p></div></div>
+            <div class="table-responsive"><table class="table management-table align-middle mb-0"><thead><tr><th>SKU</th><th>Sản phẩm</th><th>Đơn vị</th><th class="text-end">Số lượng</th><th class="text-end">Đơn giá</th><th class="text-end">Thành tiền</th></tr></thead><tbody>
+            @foreach (var line in Model.Lines)
+            {
+                <tr><td><strong>@line.Sku</strong></td><td>@line.ProductName</td><td>@line.UnitOfMeasure</td><td class="text-end">@line.Quantity.ToString("N0")</td><td class="text-end">@line.UnitPrice.ToString("N0") ₫</td><td class="text-end fw-semibold">@line.LineTotal.ToString("N0") ₫</td></tr>
+            }
+            </tbody><tfoot><tr><td colspan="5" class="text-end fw-semibold">Tổng cộng</td><td class="text-end fw-bold">@Model.TotalAmount.ToString("N0") ₫</td></tr></tfoot></table></div>
+        </section>
+
+        <section class="panel mt-3">
+            <div class="panel-header"><div><h2>Phiếu xuất liên kết</h2><p>Đơn hàng không tự giữ tồn; reservation được tạo khi duyệt PX.</p></div>@if (Model.Status is OrderStatus.Pending or OrderStatus.Processing) {<a asp-controller="ExportReceipts" asp-action="Create" asp-route-orderId="@Model.Id" class="btn btn-sm btn-outline-primary">+ Tạo phiếu xuất</a>}</div>
+            @if (Model.ExportReceipts.Count == 0)
+            {
+                <div class="empty-state compact"><strong>Chưa có phiếu xuất</strong><p>Tạo PX khi đơn sẵn sàng xử lý hàng.</p></div>
+            }
+            else
+            {
+                <div class="table-responsive"><table class="table management-table align-middle mb-0"><thead><tr><th>Mã phiếu</th><th>Ngày tạo</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr></thead><tbody>@foreach (var receipt in Model.ExportReceipts) {<tr><td><strong>@receipt.ReceiptNumber</strong></td><td>@receipt.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td><td>@ReceiptStatusText(receipt.Status)</td><td class="text-end"><a asp-controller="ExportReceipts" asp-action="Details" asp-route-id="@receipt.Id" class="btn btn-sm btn-outline-secondary">Xem PX</a></td></tr>}</tbody></table></div>
+            }
+        </section>
+    </div>
+
+    <aside class="panel order-actions-card">
+        <div class="panel-header"><div><h2>Xử lý đơn hàng</h2><p>Chỉ hiển thị chuyển trạng thái hợp lệ.</p></div></div>
+        <div class="px-3 pb-3 d-grid gap-2">
+            @if (Model.Status == OrderStatus.Pending)
+            {
+                <partial name="_StatusButton" model="@(new SmartWare.Web.ViewModels.Orders.ChangeOrderStatusViewModel { Id = Model.Id, RowVersion = Model.RowVersion, TargetStatus = OrderStatus.Processing })" view-data='new ViewDataDictionary(ViewData) { ["Label"] = "Bắt đầu xử lý", ["Class"] = "btn-primary" }' />
+                <partial name="_StatusButton" model="@(new SmartWare.Web.ViewModels.Orders.ChangeOrderStatusViewModel { Id = Model.Id, RowVersion = Model.RowVersion, TargetStatus = OrderStatus.Cancelled })" view-data='new ViewDataDictionary(ViewData) { ["Label"] = "Hủy đơn hàng", ["Class"] = "btn-outline-danger" }' />
+            }
+            else if (Model.Status == OrderStatus.Processing)
+            {
+                <a asp-controller="ExportReceipts" asp-action="Create" asp-route-orderId="@Model.Id" class="btn btn-primary">Tạo phiếu xuất kho</a>
+                <partial name="_StatusButton" model="@(new SmartWare.Web.ViewModels.Orders.ChangeOrderStatusViewModel { Id = Model.Id, RowVersion = Model.RowVersion, TargetStatus = OrderStatus.Cancelled })" view-data='new ViewDataDictionary(ViewData) { ["Label"] = "Hủy đơn hàng", ["Class"] = "btn-outline-danger" }' />
+            }
+            else if (Model.Status == OrderStatus.Shipping)
+            {
+                <partial name="_StatusButton" model="@(new SmartWare.Web.ViewModels.Orders.ChangeOrderStatusViewModel { Id = Model.Id, RowVersion = Model.RowVersion, TargetStatus = OrderStatus.Completed })" view-data='new ViewDataDictionary(ViewData) { ["Label"] = "Xác nhận giao thành công", ["Class"] = "btn-success" }' />
+                <partial name="_StatusButton" model="@(new SmartWare.Web.ViewModels.Orders.ChangeOrderStatusViewModel { Id = Model.Id, RowVersion = Model.RowVersion, TargetStatus = OrderStatus.DeliveryFailed })" view-data='new ViewDataDictionary(ViewData) { ["Label"] = "Giao hàng thất bại", ["Class"] = "btn-outline-danger" }' />
+                <partial name="_StatusButton" model="@(new SmartWare.Web.ViewModels.Orders.ChangeOrderStatusViewModel { Id = Model.Id, RowVersion = Model.RowVersion, TargetStatus = OrderStatus.Returned })" view-data='new ViewDataDictionary(ViewData) { ["Label"] = "Đánh dấu hoàn hàng", ["Class"] = "btn-outline-secondary" }' />
+            }
+            else if (Model.Status == OrderStatus.DeliveryFailed)
+            {
+                <partial name="_StatusButton" model="@(new SmartWare.Web.ViewModels.Orders.ChangeOrderStatusViewModel { Id = Model.Id, RowVersion = Model.RowVersion, TargetStatus = OrderStatus.Shipping })" view-data='new ViewDataDictionary(ViewData) { ["Label"] = "Giao lại", ["Class"] = "btn-primary" }' />
+                <partial name="_StatusButton" model="@(new SmartWare.Web.ViewModels.Orders.ChangeOrderStatusViewModel { Id = Model.Id, RowVersion = Model.RowVersion, TargetStatus = OrderStatus.Returned })" view-data='new ViewDataDictionary(ViewData) { ["Label"] = "Đánh dấu hoàn hàng", ["Class"] = "btn-outline-secondary" }' />
+            }
+            else if (Model.Status == OrderStatus.Completed)
+            {
+                <partial name="_StatusButton" model="@(new SmartWare.Web.ViewModels.Orders.ChangeOrderStatusViewModel { Id = Model.Id, RowVersion = Model.RowVersion, TargetStatus = OrderStatus.Returned })" view-data='new ViewDataDictionary(ViewData) { ["Label"] = "Ghi nhận hoàn hàng", ["Class"] = "btn-outline-secondary" }' />
+            }
+            else
+            {
+                <p class="text-secondary small mb-0">Đơn hàng đã ở trạng thái kết thúc.</p>
+            }
+        </div>
+        @if (Model.Status == OrderStatus.Returned)
+        {
+            <div class="alert alert-warning mx-3"><small>Hoàn hàng không tự tăng tồn kho. Hãy tạo phiếu nhập nếu hàng thực tế đã quay về kho.</small></div>
+        }
+    </aside>
+</div>

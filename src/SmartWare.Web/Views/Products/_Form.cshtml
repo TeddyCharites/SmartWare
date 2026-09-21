@@ -1,0 +1,50 @@
+@model SmartWare.Web.ViewModels.Products.ProductFormViewModel
+
+<div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+<input asp-for="Id" type="hidden" />
+@if (Model.Categories.Count == 0 || Model.Suppliers.Count == 0)
+{
+    <div class="alert alert-warning">Cần có ít nhất một danh mục và một nhà cung cấp trước khi lưu sản phẩm.</div>
+}
+<div class="row g-3">
+    <div class="col-md-4"><label asp-for="Sku" class="form-label"></label><input asp-for="Sku" class="form-control text-uppercase" autofocus /><span asp-validation-for="Sku" class="text-danger"></span></div>
+    <div class="col-md-8"><label asp-for="Name" class="form-label"></label><input asp-for="Name" class="form-control" /><span asp-validation-for="Name" class="text-danger"></span></div>
+    <div class="col-md-6"><label asp-for="CategoryId" class="form-label"></label><select asp-for="CategoryId" class="form-select"><option value="0">-- Chọn danh mục --</option>@foreach (var item in Model.Categories) { <option value="@item.Id" disabled="@(!item.IsActive && Model.CategoryId != item.Id)">@item.Name@(!item.IsActive ? " (ngừng hoạt động)" : "")</option> }</select><span asp-validation-for="CategoryId" class="text-danger"></span></div>
+    <div class="col-md-6"><label asp-for="SupplierId" class="form-label"></label><select asp-for="SupplierId" class="form-select"><option value="0">-- Chọn nhà cung cấp --</option>@foreach (var item in Model.Suppliers) { <option value="@item.Id" disabled="@(!item.IsActive && Model.SupplierId != item.Id)">@item.Name@(!item.IsActive ? " (ngừng hoạt động)" : "")</option> }</select><span asp-validation-for="SupplierId" class="text-danger"></span></div>
+    <div class="col-md-4"><label asp-for="UnitOfMeasure" class="form-label"></label><input asp-for="UnitOfMeasure" class="form-control" placeholder="Cái, hộp, kg..." /><span asp-validation-for="UnitOfMeasure" class="text-danger"></span></div>
+    <div class="col-md-4"><label asp-for="SellingPrice" class="form-label"></label><div class="input-group"><input asp-for="SellingPrice" class="form-control" /><span class="input-group-text">₫</span></div><span asp-validation-for="SellingPrice" class="text-danger"></span></div>
+    <div class="col-12">
+        <label asp-for="ImageFile" class="form-label"></label>
+        <div class="product-image-uploader" data-product-image-uploader>
+            <div class="product-image-preview" data-image-preview>
+                @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
+                {
+                    <img src="@Model.ImageUrl" alt="Ảnh hiện tại của @Model.Name" data-image-preview-element />
+                    <span class="product-image-placeholder d-none" data-image-placeholder>Ảnh sản phẩm</span>
+                }
+                else
+                {
+                    <img src="" alt="Ảnh xem trước" class="d-none" data-image-preview-element />
+                    <span class="product-image-placeholder" data-image-placeholder>Ảnh sản phẩm</span>
+                }
+            </div>
+            <div class="product-image-controls">
+                <input asp-for="ImageFile" class="form-control" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" data-image-input />
+                <span asp-validation-for="ImageFile" class="text-danger"></span>
+                <div class="form-text">JPEG, PNG hoặc WebP; dung lượng tối đa 5 MB. Ảnh vuông cho kết quả hiển thị đẹp nhất.</div>
+                <div class="product-image-file-name" data-image-file-name>Chưa chọn ảnh mới.</div>
+                @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
+                {
+                    <div class="form-check mt-2">
+                        <input asp-for="RemoveImage" class="form-check-input" data-image-remove />
+                        <label asp-for="RemoveImage" class="form-check-label"></label>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6"><label asp-for="MinimumStock" class="form-label"></label><input asp-for="MinimumStock" class="form-control" /><span asp-validation-for="MinimumStock" class="text-danger"></span><div class="form-text">Hệ thống cảnh báo khi tồn khả dụng chạm ngưỡng này.</div></div>
+    <div class="col-md-6"><label asp-for="MaximumStock" class="form-label"></label><input asp-for="MaximumStock" class="form-control" /><span asp-validation-for="MaximumStock" class="text-danger"></span></div>
+    <div class="col-12"><label asp-for="Description" class="form-label"></label><textarea asp-for="Description" class="form-control" rows="4"></textarea><span asp-validation-for="Description" class="text-danger"></span></div>
+    <div class="col-12"><div class="form-check form-switch"><input asp-for="IsActive" class="form-check-input" /><label asp-for="IsActive" class="form-check-label"></label></div></div>
+</div>

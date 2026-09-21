@@ -1,0 +1,78 @@
+@model SmartWare.Web.ViewModels.Categories.CategoryIndexViewModel
+@{
+    ViewData["Title"] = "Danh mục sản phẩm";
+}
+
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">DỮ LIỆU NỀN</span>
+        <h1>Danh mục sản phẩm</h1>
+        <p>Tổ chức các nhóm hàng và trạng thái sử dụng.</p>
+    </div>
+    <a asp-action="Create" class="btn btn-primary">+ Thêm danh mục</a>
+</div>
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">@success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<section class="panel">
+    <form method="get" class="filter-bar">
+        <div class="filter-search">
+            <label for="search" class="visually-hidden">Tìm kiếm</label>
+            <input id="search" name="search" value="@Model.Search" class="form-control" placeholder="Tìm theo tên hoặc mô tả..." />
+        </div>
+        <select name="isActive" class="form-select" aria-label="Lọc trạng thái">
+            <option value="">Tất cả trạng thái</option>
+            <option value="true" selected="@(Model.IsActive == true)">Đang hoạt động</option>
+            <option value="false" selected="@(Model.IsActive == false)">Ngừng hoạt động</option>
+        </select>
+        <button class="btn btn-outline-primary" type="submit">Lọc</button>
+        <a asp-action="Index" class="btn btn-link text-secondary">Đặt lại</a>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table management-table align-middle mb-0">
+            <thead><tr><th>Tên danh mục</th><th>Mô tả</th><th class="text-center">Sản phẩm</th><th>Trạng thái</th><th>Ngày tạo</th><th class="text-end">Thao tác</th></tr></thead>
+            <tbody>
+                @if (Model.Results.Items.Count == 0)
+                {
+                    <tr><td colspan="6"><div class="empty-state"><span>◇</span><strong>Không tìm thấy danh mục</strong><p>Thử thay đổi điều kiện lọc hoặc thêm danh mục mới.</p></div></td></tr>
+                }
+                else
+                {
+                    @foreach (var item in Model.Results.Items)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@item.Name</td>
+                            <td class="text-secondary text-truncate-cell">@(item.Description ?? "—")</td>
+                            <td class="text-center"><span class="number-chip">@item.ProductCount</span></td>
+                            <td><span class="state-badge @(item.IsActive ? "state-active" : "state-inactive")">@(item.IsActive ? "Hoạt động" : "Ngừng hoạt động")</span></td>
+                            <td class="text-secondary">@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                            <td class="text-end table-actions">
+                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">Xem</a>
+                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
+                                <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger">Xóa</a>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.Results.TotalPages > 1)
+    {
+        <div class="pagination-bar">
+            <span>Trang @Model.Results.Page / @Model.Results.TotalPages · @Model.Results.TotalCount kết quả</span>
+            <div class="btn-group">
+                <a class="btn btn-sm btn-outline-secondary @(Model.Results.HasPreviousPage ? "" : "disabled")" asp-action="Index" asp-route-search="@Model.Search" asp-route-isActive="@Model.IsActive" asp-route-page="@(Model.Results.Page - 1)">Trước</a>
+                <a class="btn btn-sm btn-outline-secondary @(Model.Results.HasNextPage ? "" : "disabled")" asp-action="Index" asp-route-search="@Model.Search" asp-route-isActive="@Model.IsActive" asp-route-page="@(Model.Results.Page + 1)">Sau</a>
+            </div>
+        </div>
+    }
+</section>

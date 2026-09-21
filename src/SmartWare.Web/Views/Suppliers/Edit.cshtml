@@ -1,0 +1,7 @@
+@model SmartWare.Web.ViewModels.Suppliers.SupplierFormViewModel
+@{ ViewData["Title"] = "Chỉnh sửa nhà cung cấp"; }
+<div class="form-page form-page-wide">
+    <div class="form-page-header"><div><span class="eyebrow">NHÀ CUNG CẤP</span><h1>Chỉnh sửa nhà cung cấp</h1><p>Cập nhật hồ sơ liên hệ và trạng thái.</p></div><a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a></div>
+    <form method="post" class="panel form-panel"><div class="panel-body"><partial name="_Form" model="Model" /></div><div class="form-actions"><a asp-action="Index" class="btn btn-light">Hủy</a><button type="submit" class="btn btn-primary">Lưu thay đổi</button></div></form>
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

@@ -1,0 +1,37 @@
+@model SmartWare.Web.ViewModels.Knowledge.KnowledgeCreateViewModel
+@using SmartWare.Domain.Constants
+@{
+    ViewData["Title"] = "Thêm tài liệu RAG";
+}
+
+<div class="form-page">
+    <div class="form-page-header">
+        <div><span class="eyebrow">HYBRID RAG</span><h1>Thêm tài liệu tri thức</h1><p>Nội dung sẽ được chia đoạn và tạo vector embedding bằng Gemini.</p></div>
+        <a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a>
+    </div>
+    <form asp-action="Create" method="post" enctype="multipart/form-data" class="panel form-panel">
+        <div class="panel-body">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+            <div class="row g-3">
+                <div class="col-md-7"><label asp-for="Title" class="form-label"></label><input asp-for="Title" class="form-control" /><span asp-validation-for="Title" class="text-danger"></span></div>
+                <div class="col-md-3"><label asp-for="Category" class="form-label"></label><input asp-for="Category" class="form-control" /><span asp-validation-for="Category" class="text-danger"></span></div>
+                <div class="col-md-2"><label asp-for="Version" class="form-label"></label><input asp-for="Version" class="form-control" /><span asp-validation-for="Version" class="text-danger"></span></div>
+                <div class="col-12"><label asp-for="File" class="form-label"></label><input asp-for="File" class="form-control" accept=".txt,.md,.csv,text/plain,text/markdown,text/csv" /><div class="form-text">Tối đa 2 MB. Nếu chọn tệp, nội dung tệp được ưu tiên.</div><span asp-validation-for="File" class="text-danger"></span></div>
+                <div class="col-12"><label asp-for="Content" class="form-label"></label><textarea asp-for="Content" class="form-control" rows="12" placeholder="Hoặc dán quy trình, chính sách, hướng dẫn vào đây..."></textarea><span asp-validation-for="Content" class="text-danger"></span></div>
+                <div class="col-12">
+                    <label class="form-label">Role được phép truy xuất</label>
+                    <div class="d-flex flex-wrap gap-3">
+                        @foreach (var role in RoleNames.All)
+                        {
+                            <label class="form-check"><input class="form-check-input" type="checkbox" name="AllowedRoles" value="@role" checked="@Model.AllowedRoles.Contains(role)" /><span class="form-check-label">@role</span></label>
+                        }
+                    </div>
+                    <span asp-validation-for="AllowedRoles" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
+        <div class="form-actions"><a asp-action="Index" class="btn btn-light">Hủy</a><button type="submit" class="btn btn-primary">Lưu và tạo embedding</button></div>
+    </form>
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

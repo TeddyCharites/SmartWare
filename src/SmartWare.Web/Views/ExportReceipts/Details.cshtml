@@ -1,0 +1,114 @@
+@model SmartWare.Application.Warehouse.Exports.ExportReceiptDetails
+@{
+    ViewData["Title"] = $"Phiếu xuất {Model.ReceiptNumber}";
+    string StatusText(ReceiptStatus status) => status switch
+    {
+        ReceiptStatus.Pending => "Chờ duyệt",
+        ReceiptStatus.Approved => "Đã giữ hàng",
+        ReceiptStatus.Rejected => "Từ chối",
+        ReceiptStatus.Completed => "Hoàn tất",
+        ReceiptStatus.Cancelled => "Đã hủy",
+        _ => status.ToString()
+    };
+    string StatusClass(ReceiptStatus status) => status switch
+    {
+        ReceiptStatus.Pending => "receipt-pending",
+        ReceiptStatus.Approved => "receipt-approved",
+        ReceiptStatus.Rejected => "receipt-rejected",
+        ReceiptStatus.Completed => "receipt-completed",
+        _ => "receipt-cancelled"
+    };
+}
+
+<div class="form-page-header">
+    <div><span class="eyebrow">PHIẾU XUẤT</span><h1>@Model.ReceiptNumber</h1><p>Tạo lúc @Model.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm") bởi @Model.CreatedByName</p></div>
+    <div class="d-flex align-items-center gap-2"><span class="receipt-status @StatusClass(Model.Status)">@StatusText(Model.Status)</span><a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a></div>
+</div>
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">@success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<section class="panel receipt-summary">
+    <div><span>Đơn hàng</span><strong>@(Model.OrderNumber ?? "Xuất trực tiếp")</strong></div>
+    <div><span>Khách hàng</span><strong>@(Model.CustomerName ?? "Không liên kết")</strong></div>
+    <div><span>Kho xuất</span><strong>@Model.WarehouseName</strong></div>
+    <div><span>Tổng số lượng</span><strong>@Model.TotalQuantity.ToString("N0")</strong></div>
+</section>
+
+<section class="panel mt-3">
+    <div class="panel-header"><div><h2>Danh sách hàng xuất</h2><p>@(Model.Status == ReceiptStatus.Completed ? "Giá vốn đã đóng băng tại thời điểm xuất." : "Giá vốn hiện tại là số liệu dự kiến.")</p></div><strong>@Model.TotalValue.ToString("N0") ₫</strong></div>
+    <div class="table-responsive">
+        <table class="table management-table align-middle mb-0">
+            <thead><tr><th>SKU</th><th>Sản phẩm</th><th>Đơn vị</th><th class="text-end">Số lượng</th><th class="text-end">Giá vốn</th><th class="text-end">Thành tiền</th></tr></thead>
+            <tbody>
+            @foreach (var line in Model.Lines)
+            {
+                <tr><td><strong>@line.Sku</strong></td><td>@line.ProductName</td><td>@line.UnitOfMeasure</td><td class="text-end">@line.Quantity.ToString("N0")</td><td class="text-end">@line.UnitCost.ToString("N0") ₫</td><td class="text-end fw-semibold">@line.LineTotal.ToString("N0") ₫</td></tr>
+            }
+            </tbody>
+            <tfoot><tr><td colspan="5" class="text-end fw-semibold">Tổng cộng</td><td class="text-end fw-bold">@Model.TotalValue.ToString("N0") ₫</td></tr></tfoot>
+        </table>
+    </div>
+</section>
+
+<section class="receipt-workflow mt-3">
+    <article class="panel">
+        <div class="panel-header"><div><h2>Lịch sử xử lý</h2><p>Trạng thái tồn kho theo từng bước</p></div></div>
+        <ol class="workflow-list">
+            <li class="done"><strong>Đã tạo phiếu</strong><span>Chưa giữ tồn · @Model.CreatedByName · @Model.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></li>
+            @if (Model.ApprovedAt.HasValue)
+            {
+                <li class="@(Model.Status == ReceiptStatus.Rejected ? "rejected" : "done")"><strong>@(Model.Status == ReceiptStatus.Rejected ? "Đã từ chối" : "Đã duyệt và giữ tồn")</strong><span>@Model.ApprovedByName · @Model.ApprovedAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></li>
+            }
+            else
+            {
+                <li><strong>Chờ duyệt</strong><span>Manager sẽ kiểm tra lượng khả dụng</span></li>
+            }
+            @if (Model.CompletedAt.HasValue)
+            {
+                <li class="done"><strong>Đã xuất kho</strong><span>@Model.CompletedByName · @Model.CompletedAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></li>
+            }
+            else if (Model.Status != ReceiptStatus.Rejected)
+            {
+                <li><strong>Chờ hoàn tất</strong><span>Tồn vật lý chỉ giảm sau bước này</span></li>
+            }
+        </ol>
+        @if (!string.IsNullOrWhiteSpace(Model.RejectionReason))
+        {
+            <div class="alert alert-danger mx-3"><strong>Lý do từ chối:</strong> @Model.RejectionReason</div>
+        }
+    </article>
+
+    @if (Model.Status == ReceiptStatus.Pending && User.IsInRole(RoleNames.Manager))
+    {
+        <article class="panel workflow-action-card">
+            <div class="panel-header"><div><h2>Xét duyệt phiếu</h2><p>Duyệt phiếu sẽ giữ ngay số lượng khả dụng.</p></div></div>
+            <form asp-action="Approve" method="post" class="px-3 pb-3">
+                <input type="hidden" name="Id" value="@Model.Id" /><input type="hidden" name="RowVersion" value="@Model.RowVersion" />
+                <button type="submit" class="btn btn-success w-100">Duyệt và giữ hàng</button>
+            </form>
+            <form asp-action="Reject" method="post" class="px-3 pb-3">
+                <input type="hidden" name="Id" value="@Model.Id" /><input type="hidden" name="RowVersion" value="@Model.RowVersion" />
+                <label for="export-rejection-reason" class="form-label">Lý do từ chối</label>
+                <textarea id="export-rejection-reason" name="RejectionReason" class="form-control mb-2" maxlength="1000" rows="3" required></textarea>
+                <button type="submit" class="btn btn-outline-danger w-100">Từ chối phiếu</button>
+            </form>
+        </article>
+    }
+    else if (Model.Status == ReceiptStatus.Approved && (User.IsInRole(RoleNames.Admin) || User.IsInRole(RoleNames.Employee)))
+    {
+        <article class="panel workflow-action-card">
+            <div class="panel-header"><div><h2>Hoàn tất xuất kho</h2><p>Giảm tồn vật lý, giải phóng lượng giữ và ghi giao dịch OUT.</p></div></div>
+            <form asp-action="Complete" method="post" class="px-3 pb-3">
+                <input type="hidden" name="Id" value="@Model.Id" /><input type="hidden" name="RowVersion" value="@Model.RowVersion" />
+                <button type="submit" class="btn btn-primary w-100">Xác nhận hàng đã rời kho</button>
+            </form>
+        </article>
+    }
+</section>

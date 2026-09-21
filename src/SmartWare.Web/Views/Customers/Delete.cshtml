@@ -1,0 +1,7 @@
+@model SmartWare.Application.Catalog.Customers.CustomerDetails
+@{ ViewData["Title"] = "Xóa khách hàng"; var referenced = Model.OrderCount > 0; }
+<div class="confirm-page"><section class="panel confirm-card"><div class="confirm-icon">!</div><span class="eyebrow">XÁC NHẬN</span><h1>Xóa “@Model.Name”?</h1>
+    @if (referenced) { <p>Khách hàng đã có <strong>@Model.OrderCount đơn hàng</strong>. Hệ thống sẽ chuyển sang ngừng hoạt động để bảo toàn lịch sử.</p> }
+    else { <p>Khách hàng chưa được sử dụng và sẽ bị xóa khỏi hệ thống. Thao tác này không thể hoàn tác.</p> }
+    <form method="post" class="d-flex justify-content-center gap-2 mt-4"><a asp-action="Index" class="btn btn-light">Hủy</a><button type="submit" class="btn btn-danger">@(referenced ? "Ngừng hoạt động" : "Xóa khách hàng")</button></form>
+</section></div>

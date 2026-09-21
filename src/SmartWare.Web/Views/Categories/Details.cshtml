@@ -1,0 +1,15 @@
+@model SmartWare.Application.Catalog.Categories.CategoryDetails
+@{ ViewData["Title"] = "Chi tiết danh mục"; }
+
+<div class="form-page">
+    <div class="form-page-header"><div><span class="eyebrow">DANH MỤC</span><h1>@Model.Name</h1><p>Thông tin chi tiết danh mục sản phẩm.</p></div><div class="d-flex gap-2"><a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Chỉnh sửa</a><a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a></div></div>
+    <section class="panel detail-card">
+        <dl class="detail-grid">
+            <div><dt>Trạng thái</dt><dd><span class="state-badge @(Model.IsActive ? "state-active" : "state-inactive")">@(Model.IsActive ? "Hoạt động" : "Ngừng hoạt động")</span></dd></div>
+            <div><dt>Số sản phẩm</dt><dd>@Model.ProductCount.ToString("N0")</dd></div>
+            <div><dt>Ngày tạo</dt><dd>@Model.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</dd></div>
+            <div><dt>Cập nhật cuối</dt><dd>@(Model.UpdatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—")</dd></div>
+            <div class="detail-wide"><dt>Mô tả</dt><dd>@(Model.Description ?? "Chưa có mô tả")</dd></div>
+        </dl>
+    </section>
+</div>

@@ -1,0 +1,156 @@
+@model SmartWare.Web.ViewModels.Reports.ReportIndexViewModel
+@{
+    ViewData["Title"] = "Báo cáo & Phân tích";
+    var report = Model.Report;
+    var from = report.Period.FromDate.ToString("yyyy-MM-dd");
+    var to = report.Period.ToDate.ToString("yyyy-MM-dd");
+    var maxMovement = Math.Max(1, report.Movements.Max(item => Math.Max(item.ImportQuantity, item.ExportQuantity)));
+    var maxCategoryValue = Math.Max(1m, report.CategoryInventory.Count == 0 ? 0 : report.CategoryInventory.Max(item => item.InventoryValue));
+    string PresetClass(string preset) => Model.Preset == preset ? "active" : string.Empty;
+    string RiskClass(string risk) => risk switch
+    {
+        "Hết hàng" or "Nghiêm trọng" => "risk-critical",
+        "Cao" => "risk-high",
+        "Trung bình" => "risk-medium",
+        _ => "risk-low"
+    };
+    string ExportUrl(string section) => Url.Action("Export", new
+    {
+        section,
+        preset = Model.Preset,
+        fromDate = from,
+        toDate = to
+    })!;
+}
+
+<div class="page-heading report-heading">
+    <div>
+        <span class="eyebrow">DỮ LIỆU QUẢN TRỊ</span>
+        <h1>Báo cáo &amp; Phân tích</h1>
+        <p>Dữ liệu từ @report.Period.FromDate.ToString("dd/MM/yyyy") đến @report.Period.ToDate.ToString("dd/MM/yyyy"), chỉ tính giao dịch đã hoàn tất.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-secondary" href="@ExportUrl("overview")">Xuất Excel</a>
+        <a class="btn btn-primary" target="_blank" rel="noopener"
+           href="@Url.Action("Print", new { preset = Model.Preset, fromDate = from, toDate = to })">In / Lưu PDF</a>
+    </div>
+</div>
+
+<section class="panel report-period-panel">
+    <div class="report-presets" aria-label="Chọn nhanh kỳ báo cáo">
+        <a class="@PresetClass("7-days")" asp-action="Index" asp-route-preset="7-days">7 ngày</a>
+        <a class="@PresetClass("30-days")" asp-action="Index" asp-route-preset="30-days">30 ngày</a>
+        <a class="@PresetClass("month")" asp-action="Index" asp-route-preset="month">Tháng này</a>
+        <a class="@PresetClass("quarter")" asp-action="Index" asp-route-preset="quarter">Quý này</a>
+        <a class="@PresetClass("year")" asp-action="Index" asp-route-preset="year">Năm nay</a>
+    </div>
+    <form method="get" class="report-custom-range">
+        <input type="hidden" name="preset" value="custom" />
+        <label>Từ ngày <input class="form-control" type="date" name="fromDate" value="@from" required /></label>
+        <label>Đến ngày <input class="form-control" type="date" name="toDate" value="@to" required /></label>
+        <button class="btn btn-outline-primary" type="submit">Áp dụng</button>
+    </form>
+</section>
+
+<section class="metrics-grid report-metrics" aria-label="Chỉ số báo cáo">
+    <article class="metric-card metric-blue"><div><span>Số lượng nhập</span><strong>@report.Kpis.ImportQuantity.ToString("N0")</strong><small>Đơn vị đã nhập kho</small></div></article>
+    <article class="metric-card metric-violet"><div><span>Số lượng xuất</span><strong>@report.Kpis.ExportQuantity.ToString("N0")</strong><small>Đơn vị đã xuất kho</small></div></article>
+    <article class="metric-card metric-teal"><div><span>Giá trị nhập</span><strong>@report.Kpis.ImportValue.ToString("N0") ₫</strong><small>Theo giá nhập thực tế</small></div></article>
+    <article class="metric-card metric-blue"><div><span>Doanh thu</span><strong>@report.Kpis.Revenue.ToString("N0") ₫</strong><small>Đơn hàng hoàn tất</small></div></article>
+    <article class="metric-card metric-amber"><div><span>Giá vốn xuất</span><strong>@report.Kpis.CostOfGoodsSold.ToString("N0") ₫</strong><small>COGS đóng băng lúc xuất</small></div></article>
+    <article class="metric-card @(report.Kpis.GrossProfit < 0 ? "metric-red" : "metric-teal")"><div><span>Lợi nhuận gộp</span><strong>@report.Kpis.GrossProfit.ToString("N0") ₫</strong><small>Doanh thu − COGS</small></div></article>
+    <article class="metric-card metric-violet"><div><span>Giá trị tồn hiện tại</span><strong>@report.Kpis.InventoryValue.ToString("N0") ₫</strong><small>Tồn thực tế × giá vốn TB</small></div></article>
+</section>
+
+<ul class="nav nav-pills report-tabs" id="reportTabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overview" type="button">Tổng quan</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#products" type="button">Sản phẩm</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#suppliers" type="button">Nhà cung cấp</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#customers" type="button">Khách hàng</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#forecast" type="button">Dự báo &amp; bổ sung</button></li>
+</ul>
+
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="overview">
+        <div class="report-overview-grid">
+            <section class="panel">
+                <div class="panel-header"><div><h2>Nhập – xuất theo ngày</h2><p>Số lượng từ sổ giao dịch kho</p></div><div class="chart-legend"><span><i class="legend-import"></i>Nhập</span><span><i class="legend-export"></i>Xuất</span></div></div>
+                <div class="report-chart-scroll">
+                    <div class="report-movement-chart" style="--report-days:@report.Movements.Count">
+                        @foreach (var item in report.Movements)
+                        {
+                            var importHeight = item.ImportQuantity == 0 ? 0 : Math.Max(3, (int)Math.Round(item.ImportQuantity * 100d / maxMovement));
+                            var exportHeight = item.ExportQuantity == 0 ? 0 : Math.Max(3, (int)Math.Round(item.ExportQuantity * 100d / maxMovement));
+                            <div class="report-day" title="@item.Date.ToString("dd/MM"): nhập @item.ImportQuantity.ToString("N0"), xuất @item.ExportQuantity.ToString("N0")">
+                                <div class="report-bars"><i class="report-import" style="height:@(importHeight)%"></i><i class="report-export" style="height:@(exportHeight)%"></i></div>
+                                <small>@item.Date.ToString(report.Period.DayCount > 62 ? "MM" : "dd/MM")</small>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </section>
+            <section class="panel">
+                <div class="panel-header"><div><h2>Cơ cấu tồn theo danh mục</h2><p>Giá trị tồn kho hiện tại</p></div></div>
+                @if (report.CategoryInventory.Count == 0)
+                {
+                    <div class="empty-state compact"><strong>Chưa có tồn kho</strong></div>
+                }
+                else
+                {
+                    <div class="category-bars">
+                        @foreach (var item in report.CategoryInventory.Take(10))
+                        {
+                            var width = Math.Max(2, (int)Math.Round(item.InventoryValue * 100m / maxCategoryValue));
+                            <div><span><strong>@item.CategoryName</strong><small>@item.AvailableQuantity.ToString("N0") khả dụng</small></span><i><b style="width:@(width)%"></b></i><em>@item.InventoryValue.ToString("N0") ₫</em></div>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="products">
+        <section class="panel report-table-panel">
+            <div class="panel-header"><div><h2>Hiệu quả theo sản phẩm</h2><p>Sắp xếp theo số lượng xuất trong kỳ</p></div><a href="@ExportUrl("products")">Xuất bảng</a></div>
+            <div class="table-responsive"><table class="table dashboard-table align-middle mb-0"><thead><tr><th>Sản phẩm</th><th>Danh mục</th><th class="text-end">Nhập</th><th class="text-end">Xuất</th><th class="text-end">Khả dụng</th><th class="text-end">Giá trị tồn</th><th class="text-end">Doanh thu</th></tr></thead><tbody>
+                @foreach (var item in report.Products.Take(100))
+                {
+                    <tr><td><strong>@item.ProductName</strong><small class="d-block text-secondary">@item.Sku · @item.UnitOfMeasure</small></td><td>@item.CategoryName</td><td class="text-end">@item.ImportQuantity.ToString("N0")</td><td class="text-end">@item.ExportQuantity.ToString("N0")</td><td class="text-end">@item.AvailableQuantity.ToString("N0")</td><td class="text-end">@item.InventoryValue.ToString("N0") ₫</td><td class="text-end fw-semibold">@item.Revenue.ToString("N0") ₫</td></tr>
+                }
+            </tbody></table></div>
+        </section>
+    </div>
+
+    <div class="tab-pane fade" id="suppliers">
+        <section class="panel report-table-panel">
+            <div class="panel-header"><div><h2>Phân tích nhà cung cấp</h2><p>Chỉ hiển thị phiếu nhập đã hoàn tất trong kỳ</p></div><a href="@ExportUrl("suppliers")">Xuất bảng</a></div>
+            @if (report.Suppliers.Count == 0) { <div class="empty-state"><strong>Chưa có dữ liệu nhập kho trong kỳ</strong></div> }
+            else { <div class="table-responsive"><table class="table dashboard-table align-middle mb-0"><thead><tr><th>Nhà cung cấp</th><th class="text-end">Phiếu nhập</th><th class="text-end">Số lượng</th><th class="text-end">Giá trị nhập</th><th>Lần nhập gần nhất</th></tr></thead><tbody>
+                @foreach (var item in report.Suppliers) { <tr><td><strong>@item.SupplierName</strong><small class="d-block text-secondary">@item.SupplierCode</small></td><td class="text-end">@item.ReceiptCount.ToString("N0")</td><td class="text-end">@item.ImportQuantity.ToString("N0")</td><td class="text-end fw-semibold">@item.ImportValue.ToString("N0") ₫</td><td>@item.LastReceiptAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td></tr> }
+            </tbody></table></div> }
+        </section>
+    </div>
+
+    <div class="tab-pane fade" id="customers">
+        <section class="panel report-table-panel">
+            <div class="panel-header"><div><h2>Phân tích khách hàng</h2><p>Doanh thu từ đơn hàng đã hoàn tất</p></div><a href="@ExportUrl("customers")">Xuất bảng</a></div>
+            @if (report.Customers.Count == 0) { <div class="empty-state"><strong>Chưa có đơn hàng hoàn tất trong kỳ</strong></div> }
+            else { <div class="table-responsive"><table class="table dashboard-table align-middle mb-0"><thead><tr><th>Khách hàng</th><th class="text-end">Đơn hoàn tất</th><th class="text-end">Số lượng mua</th><th class="text-end">Doanh thu</th><th>Đơn gần nhất</th></tr></thead><tbody>
+                @foreach (var item in report.Customers) { <tr><td><strong>@item.CustomerName</strong><small class="d-block text-secondary">@item.CustomerCode</small></td><td class="text-end">@item.CompletedOrderCount.ToString("N0")</td><td class="text-end">@item.PurchasedQuantity.ToString("N0")</td><td class="text-end fw-semibold">@item.Revenue.ToString("N0") ₫</td><td>@item.LastOrderAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td></tr> }
+            </tbody></table></div> }
+        </section>
+    </div>
+
+    <div class="tab-pane fade" id="forecast">
+        <section class="panel report-table-panel">
+            <div class="panel-header"><div><h2>Dự báo nhu cầu 30 ngày</h2><p>SMA 7 ngày từ lịch sử OUT trong kỳ; không bịa dự báo khi thiếu dữ liệu</p></div><a href="@ExportUrl("forecast")">Xuất bảng</a></div>
+            <div class="forecast-note">MAE, RMSE và MAPE được tính bằng backtest một bước. MAPE bỏ qua ngày có nhu cầu thực tế bằng 0.</div>
+            <div class="table-responsive"><table class="table dashboard-table align-middle mb-0"><thead><tr><th>Sản phẩm</th><th class="text-end">Khả dụng</th><th class="text-end">TB/ngày</th><th class="text-end">Dự báo 30 ngày</th><th class="text-end">Ngày tới hết</th><th class="text-end">Đề xuất nhập</th><th>Rủi ro</th><th>Sai số</th></tr></thead><tbody>
+                @foreach (var item in report.Forecasts.Take(100))
+                {
+                    <tr><td><strong>@item.ProductName</strong><small class="d-block text-secondary">@item.Sku · Min @item.MinimumStock.ToString("N0") / Max @item.MaximumStock.ToString("N0")</small></td><td class="text-end">@item.AvailableQuantity.ToString("N0")</td><td class="text-end">@(item.HasHistory ? item.AverageDailyDemand.ToString("N2") : "—")</td><td class="text-end">@(item.HasHistory ? item.ForecastThirtyDays.ToString("N0") : "—")</td><td class="text-end">@(item.DaysUntilOutOfStock?.ToString("N1") ?? "—")</td><td class="text-end fw-semibold">@item.SuggestedReplenishment.ToString("N0")</td><td><span class="risk-badge @RiskClass(item.RiskLevel)">@item.RiskLevel</span></td><td><small>MAE @(item.Mae?.ToString("N2") ?? "—")<br />RMSE @(item.Rmse?.ToString("N2") ?? "—")<br />MAPE @(item.Mape?.ToString("N1") ?? "—")%</small></td></tr>
+                }
+            </tbody></table></div>
+        </section>
+    </div>
+</div>

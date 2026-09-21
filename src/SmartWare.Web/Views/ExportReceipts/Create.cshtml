@@ -1,0 +1,168 @@
+@model SmartWare.Web.ViewModels.ExportReceipts.CreateExportReceiptViewModel
+@{
+    ViewData["Title"] = "Tạo phiếu xuất";
+}
+
+<div class="form-page-header">
+    <div><span class="eyebrow">XUẤT HÀNG</span><h1>Tạo phiếu xuất</h1><p>Phiếu mới chưa giữ tồn; Manager sẽ kiểm tra khả dụng khi duyệt.</p></div>
+    <a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a>
+</div>
+
+<form asp-action="Create" method="post" class="receipt-form" id="export-receipt-form">
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+    <section class="panel form-panel">
+        <div class="panel-header"><div><h2>Thông tin xuất hàng</h2><p>Có thể liên kết đơn hàng hoặc tạo phiếu xuất trực tiếp.</p></div></div>
+        <div class="row g-3 p-3 pt-0">
+            <div class="col-md-6">
+                <label asp-for="OrderId" class="form-label"></label>
+                <select asp-for="OrderId" class="form-select">
+                    <option value="">-- Xuất trực tiếp, không theo đơn --</option>
+                    @foreach (var order in Model.Orders)
+                    {
+                        <option value="@order.Id">@order.OrderNumber · @order.CustomerName</option>
+                    }
+                </select>
+                <span asp-validation-for="OrderId" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="WarehouseId" class="form-label"></label>
+                <select asp-for="WarehouseId" class="form-select">
+                    @foreach (var warehouse in Model.Warehouses)
+                    {
+                        <option value="@warehouse.Id">@warehouse.Code · @warehouse.Name</option>
+                    }
+                </select>
+                <span asp-validation-for="WarehouseId" class="text-danger"></span>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel mt-3">
+        <div class="panel-header">
+            <div><h2>Chi tiết hàng xuất</h2><p>Khả dụng chỉ mang tính tham khảo; hệ thống kiểm tra lại nguyên tử lúc duyệt.</p></div>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="add-export-line">+ Thêm dòng</button>
+        </div>
+        <span asp-validation-for="Lines" class="text-danger d-block px-3"></span>
+        <div class="table-responsive">
+            <table class="table management-table receipt-lines-table align-middle mb-0">
+                <thead><tr><th>Sản phẩm</th><th class="text-end">Khả dụng</th><th class="quantity-column">Số lượng xuất</th><th class="text-end">Giá vốn dự kiến</th><th class="text-end">Thành tiền</th><th></th></tr></thead>
+                <tbody id="export-receipt-lines">
+                    @for (var index = 0; index < Model.Lines.Count; index++)
+                    {
+                        <tr class="export-receipt-line">
+                            <td>
+                                <select asp-for="Lines[index].ProductId" class="form-select export-product-select">
+                                    <option value="0">-- Chọn sản phẩm --</option>
+                                    @foreach (var product in Model.Products)
+                                    {
+                                        <option value="@product.Id" data-available="@product.AvailableQuantity" data-cost="@product.AverageCost">@product.Code · @product.Name</option>
+                                    }
+                                </select>
+                                <span asp-validation-for="Lines[index].ProductId" class="text-danger"></span>
+                            </td>
+                            <td class="text-end line-available">0</td>
+                            <td><input asp-for="Lines[index].Quantity" class="form-control export-line-quantity" min="1" /><span asp-validation-for="Lines[index].Quantity" class="text-danger"></span></td>
+                            <td class="text-end line-cost">0 ₫</td>
+                            <td class="text-end fw-semibold line-total">0 ₫</td>
+                            <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger remove-export-line" aria-label="Xóa dòng">×</button></td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot><tr><td colspan="4" class="text-end fw-semibold">Tổng giá vốn dự kiến</td><td class="text-end fw-bold" id="export-grand-total">0 ₫</td><td></td></tr></tfoot>
+            </table>
+        </div>
+    </section>
+
+    <div class="form-actions mt-3">
+        <a asp-action="Index" class="btn btn-outline-secondary">Hủy</a>
+        <button type="submit" class="btn btn-primary">Tạo phiếu chờ duyệt</button>
+    </div>
+</form>
+
+<template id="export-line-template">
+    <tr class="export-receipt-line">
+        <td><select name="Lines[__index__].ProductId" class="form-select export-product-select"><option value="0">-- Chọn sản phẩm --</option>@foreach (var product in Model.Products) {<option value="@product.Id" data-available="@product.AvailableQuantity" data-cost="@product.AverageCost">@product.Code · @product.Name</option>}</select></td>
+        <td class="text-end line-available">0</td>
+        <td><input name="Lines[__index__].Quantity" value="1" type="number" class="form-control export-line-quantity" min="1" /></td>
+        <td class="text-end line-cost">0 ₫</td>
+        <td class="text-end fw-semibold line-total">0 ₫</td>
+        <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger remove-export-line" aria-label="Xóa dòng">×</button></td>
+    </tr>
+</template>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const body = document.getElementById('export-receipt-lines');
+            const form = document.getElementById('export-receipt-form');
+            const template = document.getElementById('export-line-template');
+            const money = new Intl.NumberFormat('vi-VN');
+
+            function renumber() {
+                body.querySelectorAll('.export-receipt-line').forEach((row, index) => {
+                    row.querySelectorAll('[name]').forEach(input => {
+                        input.name = input.name.replace(/Lines\[\d+\]/, `Lines[${index}]`);
+                    });
+                });
+            }
+
+            function calculate() {
+                let grandTotal = 0;
+                body.querySelectorAll('.export-receipt-line').forEach(row => {
+                    const option = row.querySelector('.export-product-select').selectedOptions[0];
+                    const available = Number(option?.dataset.available) || 0;
+                    const cost = Number(option?.dataset.cost) || 0;
+                    const quantity = Number(row.querySelector('.export-line-quantity').value) || 0;
+                    const total = cost * quantity;
+                    grandTotal += total;
+                    row.querySelector('.line-available').textContent = money.format(available);
+                    row.querySelector('.line-cost').textContent = `${money.format(cost)} ₫`;
+                    row.querySelector('.line-total').textContent = `${money.format(total)} ₫`;
+                });
+                document.getElementById('export-grand-total').textContent = `${money.format(grandTotal)} ₫`;
+            }
+
+            function validateUniqueProducts() {
+                const seen = new Set();
+                let isValid = true;
+                body.querySelectorAll('.export-product-select').forEach(select => {
+                    select.setCustomValidity('');
+                    if (select.value !== '0') {
+                        if (seen.has(select.value)) {
+                            select.setCustomValidity('Mỗi sản phẩm chỉ được xuất hiện một lần.');
+                            isValid = false;
+                        }
+                        seen.add(select.value);
+                    }
+                });
+                return isValid;
+            }
+
+            document.getElementById('add-export-line').addEventListener('click', () => {
+                if (body.children.length >= 100) return;
+                const index = body.children.length;
+                const fragment = template.content.cloneNode(true);
+                fragment.querySelectorAll('[name]').forEach(input => input.name = input.name.replace('__index__', index));
+                body.appendChild(fragment);
+                calculate();
+            });
+            body.addEventListener('click', event => {
+                const button = event.target.closest('.remove-export-line');
+                if (!button || body.children.length === 1) return;
+                button.closest('.export-receipt-line').remove();
+                renumber();
+                calculate();
+            });
+            body.addEventListener('input', calculate);
+            body.addEventListener('change', () => { calculate(); validateUniqueProducts(); });
+            form.addEventListener('submit', event => {
+                if (!validateUniqueProducts()) {
+                    event.preventDefault();
+                    form.reportValidity();
+                }
+            });
+            calculate();
+        })();
+    </script>
+}
