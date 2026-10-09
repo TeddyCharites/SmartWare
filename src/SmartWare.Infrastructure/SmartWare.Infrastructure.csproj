@@ -28,4 +28,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SmartWare.UnitTests" />
+    <InternalsVisibleTo Include="SmartWare.IntegrationTests" />
+  </ItemGroup>
+
 </Project>

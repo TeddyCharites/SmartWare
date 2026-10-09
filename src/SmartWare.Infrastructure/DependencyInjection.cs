@@ -25,6 +25,7 @@ using SmartWare.Infrastructure.InventoryOperations;
 using SmartWare.Infrastructure.Sales;
 using SmartWare.Infrastructure.Reports;
 using SmartWare.Infrastructure.AI;
+using SmartWare.Infrastructure.AI.Tools;
 
 namespace SmartWare.Infrastructure;
 
@@ -97,6 +98,9 @@ public static class DependencyInjection
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IChatHistoryService, ChatHistoryService>();
         services.AddScoped<IKnowledgeService, KnowledgeService>();
+        services.AddScoped<IWarehouseChatTools, WarehouseChatTools>();
+        services.AddMemoryCache();
+        services.AddSingleton<IChatDraftStore, ChatDraftStore>();
         services.Configure<GeminiOptions>(options =>
         {
             configuration.GetSection(GeminiOptions.SectionName).Bind(options);

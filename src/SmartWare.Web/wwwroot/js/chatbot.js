@@ -20,16 +20,22 @@
     let sessionId = null;
 
     function appendInlineMarkdown(element, text) {
-        const boldPattern = /\*\*(.+?)\*\*/g;
+        // **bold**, `code` and *italic* / _italic_; content is always inserted as text, never HTML.
+        const inlinePattern = /\*\*(.+?)\*\*|`([^`]+)`|\*([^*\s][^*]*?)\*|(?<![\p{L}\p{N}])_([^_\s][^_]*?)_(?![\p{L}\p{N}])/gu;
         let cursor = 0;
         let match;
-        while ((match = boldPattern.exec(text)) !== null) {
+        while ((match = inlinePattern.exec(text)) !== null) {
             if (match.index > cursor) {
                 element.appendChild(document.createTextNode(text.slice(cursor, match.index)));
             }
-            const strong = document.createElement("strong");
-            strong.textContent = match[1];
-            element.appendChild(strong);
+            const [, bold, code, italicStar, italicUnderscore] = match;
+            const node = document.createElement(bold !== undefined ? "strong" : code !== undefined ? "code" : "em");
+            if (bold !== undefined) {
+                appendInlineMarkdown(node, bold);
+            } else {
+                node.textContent = code ?? italicStar ?? italicUnderscore;
+            }
+            element.appendChild(node);
             cursor = match.index + match[0].length;
         }
         if (cursor < text.length) {
@@ -48,11 +54,53 @@
             activeListType = null;
         };
 
-        lines.forEach(line => {
-            const trimmed = line.trim();
+        const splitRow = (row) => row.replace(/^\|/, "").replace(/\|$/, "").split("|").map(cell => cell.trim());
+        const isTableSeparator = (row) => /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?$/.test(row);
+
+        for (let index = 0; index < lines.length; index++) {
+            const trimmed = lines[index].trim();
             if (!trimmed) {
                 resetList();
-                return;
+                continue;
+            }
+
+            if (trimmed.startsWith("|") && isTableSeparator(lines[index + 1]?.trim() ?? "")) {
+                resetList();
+                const wrapper = document.createElement("div");
+                wrapper.className = "chatbot-table-wrapper";
+                const table = document.createElement("table");
+                const headRow = table.createTHead().insertRow();
+                splitRow(trimmed).forEach(cell => {
+                    const th = document.createElement("th");
+                    appendInlineMarkdown(th, cell);
+                    headRow.appendChild(th);
+                });
+                const body = table.createTBody();
+                index += 2;
+                while (index < lines.length && lines[index].trim().startsWith("|")) {
+                    const row = body.insertRow();
+                    splitRow(lines[index].trim()).forEach(cell => appendInlineMarkdown(row.insertCell(), cell));
+                    index++;
+                }
+                index--;
+                wrapper.appendChild(table);
+                element.appendChild(wrapper);
+                continue;
+            }
+
+            const quote = trimmed.match(/^>\s?(.*)$/);
+            if (quote) {
+                resetList();
+                const blockquote = document.createElement("blockquote");
+                appendInlineMarkdown(blockquote, quote[1]);
+                element.appendChild(blockquote);
+                continue;
+            }
+
+            if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+                resetList();
+                element.appendChild(document.createElement("hr"));
+                continue;
             }
 
             const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
@@ -61,7 +109,7 @@
                 const title = document.createElement(heading[1].length === 1 ? "h3" : "h4");
                 appendInlineMarkdown(title, heading[2]);
                 element.appendChild(title);
-                return;
+                continue;
             }
 
             const unordered = trimmed.match(/^[-*]\s+(.+)$/);
@@ -76,14 +124,14 @@
                 const item = document.createElement("li");
                 appendInlineMarkdown(item, (ordered ?? unordered)[1]);
                 activeList.appendChild(item);
-                return;
+                continue;
             }
 
             resetList();
             const paragraph = document.createElement("p");
             appendInlineMarkdown(paragraph, trimmed);
             element.appendChild(paragraph);
-        });
+        }
     }
 
     function appendMessage(type, text, sources = []) {
@@ -115,6 +163,113 @@
         messages.appendChild(wrapper);
         messages.scrollTop = messages.scrollHeight;
         return wrapper;
+    }
+
+    const money = (value) => `${Math.round(value).toLocaleString("vi-VN")} đ`;
+    const element = (tag, className, text) => {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+    };
+
+    // Preview card for a receipt the assistant drafted. Nothing exists in the database until
+    // the user presses "Xác nhận tạo phiếu"; the server re-validates everything on confirm.
+    function appendDraftCard(draft) {
+        const isImport = draft.type === "import";
+        const card = element("div", `chatbot-draft${draft.canConfirm ? "" : " is-blocked"}`);
+        const header = element("div", "chatbot-draft-header");
+        header.append(
+            element("strong", "", isImport ? "Bản nháp phiếu nhập" : "Bản nháp phiếu xuất"),
+            element("span", "chatbot-draft-badge", "Chưa tạo"));
+        card.appendChild(header);
+
+        const meta = element("div", "chatbot-draft-meta");
+        if (draft.warehouseName) meta.appendChild(element("span", "", `Kho: ${draft.warehouseName}`));
+        if (isImport && draft.supplierName) meta.appendChild(element("span", "", `NCC: ${draft.supplierName}`));
+        if (!isImport && draft.orderNumber) meta.appendChild(element("span", "", `Đơn hàng: ${draft.orderNumber}`));
+        card.appendChild(meta);
+
+        if (draft.lines.length > 0) {
+            const wrapper = element("div", "chatbot-table-wrapper");
+            const table = element("table");
+            const headRow = table.createTHead().insertRow();
+            (isImport ? ["Sản phẩm", "SL", "Đơn giá", "Thành tiền"] : ["Sản phẩm", "SL", "Khả dụng"])
+                .forEach(label => headRow.appendChild(element("th", "", label)));
+            const body = table.createTBody();
+            draft.lines.forEach(line => {
+                const row = body.insertRow();
+                const product = row.insertCell();
+                product.append(element("strong", "", line.sku), document.createTextNode(` ${line.productName}`));
+                row.insertCell().textContent = `${line.quantity.toLocaleString("vi-VN")} ${line.unitOfMeasure}`;
+                if (isImport) {
+                    row.insertCell().textContent = money(line.unitCost);
+                    row.insertCell().textContent = money(line.unitCost * line.quantity);
+                } else {
+                    const available = row.insertCell();
+                    available.textContent = (line.availableQuantity ?? 0).toLocaleString("vi-VN");
+                    if ((line.availableQuantity ?? 0) < line.quantity) available.className = "is-short";
+                }
+            });
+            wrapper.appendChild(table);
+            card.appendChild(wrapper);
+            card.appendChild(element("div", "chatbot-draft-total", `${isImport ? "Tổng giá trị" : "Giá vốn ước tính"}: ${money(draft.totalValue)}`));
+        }
+
+        if (draft.warnings.length > 0) {
+            const warnings = element("ul", "chatbot-draft-warnings");
+            draft.warnings.forEach(text => warnings.appendChild(element("li", "", text)));
+            card.appendChild(warnings);
+        }
+
+        const actions = element("div", "chatbot-draft-actions");
+        const confirm = element("button", "chatbot-draft-confirm", "Xác nhận tạo phiếu");
+        confirm.type = "button";
+        confirm.disabled = !draft.canConfirm;
+        const edit = element("a", "chatbot-draft-edit", "Mở trong form để sửa");
+        edit.href = `${isImport ? "/nhap-kho" : "/xuat-kho"}/tao-phieu?draftId=${encodeURIComponent(draft.id)}`;
+        actions.append(confirm, edit);
+        card.appendChild(actions);
+        card.appendChild(element("small", "chatbot-draft-note", "Phiếu được tạo ở trạng thái Chờ duyệt và cần Quản lý duyệt."));
+
+        confirm.addEventListener("click", async () => {
+            confirm.disabled = true;
+            confirm.textContent = "Đang tạo phiếu…";
+            try {
+                const response = await fetch(`/chatbot/drafts/${encodeURIComponent(draft.id)}/confirm`, {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: { "RequestVerificationToken": token }
+                });
+                let result;
+                try { result = await response.json(); } catch { result = null; }
+                if (response.ok && result?.success) {
+                    card.classList.add("is-done");
+                    header.querySelector(".chatbot-draft-badge").textContent = "Đã tạo";
+                    actions.replaceChildren(element("span", "chatbot-draft-success", result.message));
+                    if (result.listUrl) {
+                        const link = element("a", "chatbot-draft-edit", "Xem danh sách phiếu");
+                        link.href = result.listUrl;
+                        actions.appendChild(link);
+                    }
+                    window.SmartWareToast?.(result.message, "success");
+                } else {
+                    const message = result?.message ?? (response.status === 403
+                        ? "Vai trò của bạn không được phép tạo phiếu."
+                        : "Không thể tạo phiếu lúc này. Vui lòng thử lại.");
+                    confirm.disabled = false;
+                    confirm.textContent = "Xác nhận tạo phiếu";
+                    window.SmartWareToast?.(message, "error");
+                }
+            } catch {
+                confirm.disabled = false;
+                confirm.textContent = "Xác nhận tạo phiếu";
+                window.SmartWareToast?.("Không thể kết nối tới máy chủ.", "error");
+            }
+        });
+
+        messages.appendChild(card);
+        messages.scrollTop = messages.scrollHeight;
     }
 
     const renderWelcome = () => {
@@ -258,6 +413,9 @@
             typing.remove();
             if (result?.answer) {
                 appendMessage(result.success ? "assistant" : "assistant error", result.answer, result.sources ?? []);
+                if (result.success && result.draft) {
+                    appendDraftCard(result.draft);
+                }
                 if (result.success && result.sessionId) {
                     sessionId = result.sessionId;
                     await loadHistory();
@@ -279,6 +437,15 @@
             window.clearTimeout(timeout);
             setSending(false);
             input.focus();
+        }
+    };
+
+    // Lets other UI (the Ctrl+K quick search) open the assistant with a question.
+    window.SmartWareChat = {
+        open: () => setOpen(true),
+        ask: (text) => {
+            setOpen(true);
+            ask(text);
         }
     };
 

@@ -19,10 +19,13 @@
     <link rel="stylesheet" href="~/css/chatbot.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/SmartWare.Web.styles.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/modern.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/app-ui.css" asp-append-version="true" />
 </head>
 <body class="@(isAuthenticated ? "app-body" : "guest-body")">
     @if (isAuthenticated)
     {
+        @* Apply the saved collapsed-sidebar state before first paint to avoid a layout flash. *@
+        <script>try { if (localStorage.getItem("sw.sidebarCollapsed") === "1") document.body.classList.add("sidebar-collapsed"); } catch { }</script>
         <div class="app-shell">
             <aside class="app-sidebar" id="appSidebar" aria-label="Điều hướng chính">
                 <a class="brand" asp-controller="Home" asp-action="Index">
@@ -111,10 +114,19 @@
                             aria-controls="appSidebar" aria-expanded="false" aria-label="Mở menu">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg>
                     </button>
+                    <button class="icon-button sidebar-collapse" type="button" data-sidebar-collapse
+                            aria-controls="appSidebar" aria-pressed="false" title="Thu gọn menu" aria-label="Thu gọn menu">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h2v16H4V4Zm11.6 3.4L17 8.8 13.8 12l3.2 3.2-1.4 1.4L11 12l4.6-4.6Z"/></svg>
+                    </button>
                     <div class="topbar-heading">
                         <span>Hệ thống quản lý kho</span>
                         <small>@DateTime.Today.ToString("dddd, dd/MM/yyyy")</small>
                     </div>
+                    <button class="topbar-search" type="button" data-palette-open aria-haspopup="dialog" aria-label="Tìm nhanh (Ctrl+K)">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24-1.42 1.42-4.24-4.25A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>
+                        <span>Tìm trang, sản phẩm, phiếu hoặc hỏi AI…</span>
+                        <kbd>Ctrl K</kbd>
+                    </button>
                     <div class="account-box">
                         <span class="account-avatar" aria-hidden="true">@((User.Identity?.Name ?? "S")[0].ToString().ToUpperInvariant())</span>
                         <span class="account-copy">
@@ -140,6 +152,31 @@
             </section>
         </div>
         <partial name="_Chatbot" />
+
+        <div class="palette" data-palette hidden role="dialog" aria-modal="true" aria-label="Tìm nhanh">
+            <div class="palette-dialog">
+                <div class="palette-input-row">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24-1.42 1.42-4.24-4.25A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>
+                    <input class="palette-input" data-palette-input type="text" autocomplete="off" spellcheck="false"
+                           role="combobox" aria-expanded="true" aria-controls="paletteList"
+                           placeholder="Gõ tên trang, mã SKU, mã phiếu hoặc câu hỏi cho AI…" />
+                </div>
+                <ul class="palette-list" id="paletteList" data-palette-list role="listbox"></ul>
+                <div class="palette-footer"><span><kbd>↑</kbd> <kbd>↓</kbd> chọn</span><span><kbd>Enter</kbd> mở</span><span><kbd>Esc</kbd> đóng</span></div>
+                <div hidden>
+                    @if (User.IsInRole(RoleNames.Admin) || User.IsInRole(RoleNames.Employee))
+                    {
+                        <a data-palette-action data-hint="Nhập kho" asp-controller="ImportReceipts" asp-action="Create">Tạo phiếu nhập</a>
+                        <a data-palette-action data-hint="Xuất kho" asp-controller="ExportReceipts" asp-action="Create">Tạo phiếu xuất</a>
+                    }
+                    @if (User.IsInRole(RoleNames.Admin))
+                    {
+                        <a data-palette-action data-hint="Sản phẩm" asp-controller="Products" asp-action="Create">Thêm sản phẩm</a>
+                        <a data-palette-action data-hint="Đơn hàng" asp-controller="Orders" asp-action="Create">Tạo đơn hàng</a>
+                    }
+                </div>
+            </div>
+        </div>
     }
     else
     {
@@ -161,6 +198,7 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/chatbot.js" asp-append-version="true"></script>
+    <script src="~/js/app-ui.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

@@ -108,6 +108,12 @@ public sealed record CompleteExportReceiptCommand(
     string RowVersion,
     string CompletedById);
 
+public sealed record CancelExportReceiptCommand(
+    int Id,
+    string RowVersion,
+    string Reason,
+    string CancelledById);
+
 public interface IExportReceiptService
 {
     Task<ExportReceiptPage> GetPageAsync(
@@ -125,5 +131,8 @@ public interface IExportReceiptService
         CancellationToken cancellationToken = default);
     Task<OperationResult> CompleteAsync(
         CompleteExportReceiptCommand command,
+        CancellationToken cancellationToken = default);
+    Task<OperationResult> CancelAsync(
+        CancelExportReceiptCommand command,
         CancellationToken cancellationToken = default);
 }

@@ -7,7 +7,8 @@ public sealed record ChatResponse(
     bool IsAiGenerated,
     string? ErrorCode = null,
     Guid? SessionId = null,
-    bool UsedRag = false)
+    bool UsedRag = false,
+    ChatReceiptDraft? Draft = null)
 {
     public static ChatResponse Completed(
         string answer,

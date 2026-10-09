@@ -18,6 +18,7 @@ internal sealed class KnowledgeService(
     IOptions<GeminiOptions> options,
     ILogger<KnowledgeService> logger) : IKnowledgeService
 {
+    private const double LexicalFallbackMinimumScore = 0.3;
     private readonly GeminiOptions _options = options.Value;
 
     public async Task<IReadOnlyList<KnowledgeDocumentSummary>> GetDocumentsAsync(
@@ -266,7 +267,12 @@ internal sealed class KnowledgeService(
             var score = vectorScore.HasValue
                 ? Math.Min(1, vectorScore.Value + Math.Min(0.08, lexicalScore * 0.08))
                 : lexicalScore;
-            if (score < minimumScore && lexicalScore <= 0)
+            // With an embedding the combined score must clear the configured threshold; without
+            // one (not indexed yet, or the embedding call failed) fall back to keyword overlap.
+            var isRelevant = vectorScore.HasValue
+                ? score >= minimumScore
+                : lexicalScore >= LexicalFallbackMinimumScore;
+            if (!isRelevant)
             {
                 continue;
             }

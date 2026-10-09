@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SmartWare.Application.AI.Chatbot;
 using SmartWare.Application.Common;
 using SmartWare.Application.Warehouse.Exports;
 using SmartWare.Domain.Constants;
@@ -11,7 +12,9 @@ namespace SmartWare.Web.Controllers;
 
 [Authorize]
 [Route("xuat-kho")]
-public sealed class ExportReceiptsController(IExportReceiptService exportReceiptService) : Controller
+public sealed class ExportReceiptsController(
+    IExportReceiptService exportReceiptService,
+    IChatDraftStore draftStore) : Controller
 {
     [HttpGet("")]
     public async Task<IActionResult> Index(
@@ -48,9 +51,26 @@ public sealed class ExportReceiptsController(IExportReceiptService exportReceipt
     [HttpGet("tao-phieu")]
     public async Task<IActionResult> Create(
         int? orderId,
+        Guid? draftId,
         CancellationToken cancellationToken)
     {
         var model = new CreateExportReceiptViewModel { OrderId = orderId };
+        // "Mở trong form" from the assistant: prefill from the user's own draft so it can be edited.
+        if (draftId is { } id &&
+            draftStore.Get(GetCurrentUserId(), id) is { Type: ChatDraftTypes.Export } draft &&
+            draft.Lines.Count > 0)
+        {
+            model.OrderId = draft.OrderId;
+            model.WarehouseId = draft.WarehouseId;
+            model.Lines = draft.Lines
+                .Select(line => new ExportReceiptLineViewModel
+                {
+                    ProductId = line.ProductId,
+                    Quantity = line.Quantity
+                })
+                .ToList();
+        }
+
         await PopulateOptionsAsync(model, cancellationToken);
         return View(model);
     }
@@ -123,6 +143,26 @@ public sealed class ExportReceiptsController(IExportReceiptService exportReceipt
 
         var result = await exportReceiptService.CompleteAsync(
             new CompleteExportReceiptCommand(model.Id, model.RowVersion, GetCurrentUserId()),
+            cancellationToken);
+        SetResultMessage(result);
+        return RedirectToAction(nameof(Details), new { id = model.Id });
+    }
+
+    [Authorize(Policy = AuthorizationPolicies.ApproveReceipts)]
+    [HttpPost("huy")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Cancel(
+        CancelExportReceiptViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            TempData["ErrorMessage"] = "Vui lòng nhập lý do hủy phiếu.";
+            return RedirectToAction(nameof(Details), new { id = model.Id });
+        }
+
+        var result = await exportReceiptService.CancelAsync(
+            new CancelExportReceiptCommand(model.Id, model.RowVersion, model.Reason, GetCurrentUserId()),
             cancellationToken);
         SetResultMessage(result);
         return RedirectToAction(nameof(Details), new { id = model.Id });

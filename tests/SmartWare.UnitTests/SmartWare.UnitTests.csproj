@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\SmartWare.Domain\SmartWare.Domain.csproj" />
     <ProjectReference Include="..\..\src\SmartWare.Application\SmartWare.Application.csproj" />
+    <ProjectReference Include="..\..\src\SmartWare.Infrastructure\SmartWare.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

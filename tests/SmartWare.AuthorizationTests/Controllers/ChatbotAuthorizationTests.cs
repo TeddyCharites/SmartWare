@@ -44,6 +44,17 @@ public sealed class ChatbotAuthorizationTests
         Assert.Single(action.GetCustomAttributes<Microsoft.AspNetCore.Mvc.ValidateAntiForgeryTokenAttribute>());
     }
 
+    [Fact]
+    public void ConfirmDraftAction_RequiresCreateReceiptsPolicyAndAntiForgery()
+    {
+        var action = typeof(ChatbotController).GetMethod(nameof(ChatbotController.ConfirmDraft));
+
+        Assert.NotNull(action);
+        var authorize = Assert.Single(action.GetCustomAttributes<AuthorizeAttribute>());
+        Assert.Equal(SmartWare.Domain.Constants.AuthorizationPolicies.CreateReceipts, authorize.Policy);
+        Assert.Single(action.GetCustomAttributes<Microsoft.AspNetCore.Mvc.ValidateAntiForgeryTokenAttribute>());
+    }
+
     [Theory]
     [InlineData(nameof(ChatbotController.History))]
     [InlineData(nameof(ChatbotController.HistoryDetails))]

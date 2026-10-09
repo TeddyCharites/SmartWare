@@ -81,7 +81,7 @@
         </ol>
         @if (!string.IsNullOrWhiteSpace(Model.RejectionReason))
         {
-            <div class="alert alert-danger mx-3"><strong>Lý do từ chối:</strong> @Model.RejectionReason</div>
+            <div class="alert alert-danger mx-3"><strong>@(Model.Status == ReceiptStatus.Cancelled ? "Lý do hủy:" : "Lý do từ chối:")</strong> @Model.RejectionReason</div>
         }
     </article>
 
@@ -108,6 +108,19 @@
             <form asp-action="Complete" method="post" class="px-3 pb-3">
                 <input type="hidden" name="Id" value="@Model.Id" /><input type="hidden" name="RowVersion" value="@Model.RowVersion" />
                 <button type="submit" class="btn btn-primary w-100">Xác nhận hàng đã rời kho</button>
+            </form>
+        </article>
+    }
+
+    @if ((Model.Status == ReceiptStatus.Pending || Model.Status == ReceiptStatus.Approved) && User.IsInRole(RoleNames.Manager))
+    {
+        <article class="panel workflow-action-card">
+            <div class="panel-header"><div><h2>Hủy phiếu xuất</h2><p>Hủy phiếu sẽ trả toàn bộ lượng đang giữ về tồn khả dụng.</p></div></div>
+            <form asp-action="Cancel" method="post" class="px-3 pb-3">
+                <input type="hidden" name="Id" value="@Model.Id" /><input type="hidden" name="RowVersion" value="@Model.RowVersion" />
+                <label for="export-cancel-reason" class="form-label">Lý do hủy</label>
+                <textarea id="export-cancel-reason" name="Reason" class="form-control mb-2" maxlength="1000" rows="2" required></textarea>
+                <button type="submit" class="btn btn-outline-danger w-100">Hủy phiếu và trả hàng giữ</button>
             </form>
         </article>
     }

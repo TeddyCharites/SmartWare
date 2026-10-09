@@ -481,6 +481,105 @@ internal sealed class ExportReceiptService(ApplicationDbContext dbContext) : IEx
         }
     }
 
+    public async Task<OperationResult> CancelAsync(
+        CancelExportReceiptCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryParseRowVersion(command.RowVersion, out var rowVersion))
+        {
+            return OperationResult.Failure(
+                "Phiên bản phiếu xuất không hợp lệ. Vui lòng tải lại trang.");
+        }
+
+        if (string.IsNullOrWhiteSpace(command.Reason))
+        {
+            return OperationResult.Failure("Vui lòng nhập lý do hủy phiếu.");
+        }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken);
+        var receipt = await dbContext.ExportReceipts
+            .Include(item => item.Details)
+            .Include(item => item.Reservations)
+            .SingleOrDefaultAsync(item => item.ExportReceiptId == command.Id, cancellationToken);
+        if (receipt is null)
+        {
+            return OperationResult.Failure("Không tìm thấy phiếu xuất.");
+        }
+
+        if (receipt.Status is not (ReceiptStatus.Pending or ReceiptStatus.Approved))
+        {
+            return OperationResult.Failure(
+                "Chỉ phiếu đang chờ duyệt hoặc đã duyệt (chưa xuất kho) mới có thể hủy.");
+        }
+
+        dbContext.Entry(receipt).Property(item => item.RowVersion).OriginalValue = rowVersion;
+        var oldValues = ReceiptSnapshot(receipt);
+        var cancelledAt = DateTimeOffset.UtcNow;
+        var activeReservations = receipt.Reservations
+            .Where(reservation => reservation.Status == ReservationStatus.Active)
+            .OrderBy(reservation => reservation.ProductId)
+            .ToArray();
+        var productIds = activeReservations.Select(reservation => reservation.ProductId).ToArray();
+        var inventories = await dbContext.Inventories
+            .Where(inventory =>
+                inventory.WarehouseId == receipt.WarehouseId &&
+                productIds.Contains(inventory.ProductId))
+            .ToDictionaryAsync(inventory => inventory.ProductId, cancellationToken);
+
+        try
+        {
+            foreach (var reservation in activeReservations)
+            {
+                if (!inventories.TryGetValue(reservation.ProductId, out var inventory) ||
+                    inventory.ReservedQuantity < reservation.Quantity)
+                {
+                    return OperationResult.Failure(
+                        "Dữ liệu giữ tồn không còn hợp lệ. Không có thay đổi nào được ghi nhận.");
+                }
+
+                inventory.ReservedQuantity = checked(inventory.ReservedQuantity - reservation.Quantity);
+                reservation.Status = ReservationStatus.Released;
+                reservation.ReleasedAt = cancelledAt;
+            }
+
+            receipt.Status = ReceiptStatus.Cancelled;
+            receipt.RejectionReason = command.Reason.Trim();
+
+            AuditTrail.Add(
+                dbContext,
+                command.CancelledById,
+                "Cancel",
+                "ExportReceipt",
+                nameof(ExportReceipt),
+                receipt.ExportReceiptId.ToString(),
+                oldValues,
+                ReceiptSnapshot(receipt));
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return OperationResult.Success(
+                activeReservations.Length == 0
+                    ? $"Đã hủy phiếu xuất {receipt.ReceiptNumber}."
+                    : $"Đã hủy phiếu xuất {receipt.ReceiptNumber} và trả lại hàng đang giữ về tồn khả dụng.");
+        }
+        catch (OverflowException)
+        {
+            return OperationResult.Failure("Số lượng giữ tồn vượt giới hạn cho phép.");
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return OperationResult.Failure(
+                "Tồn kho hoặc phiếu xuất đã được người khác cập nhật. Vui lòng tải lại trang.");
+        }
+        catch (DbUpdateException)
+        {
+            return OperationResult.Failure(
+                "Không thể hủy phiếu xuất. Toàn bộ thay đổi đã được hoàn tác.");
+        }
+    }
+
     private IQueryable<ExportReceipt> ApplyFilters(ExportReceiptQuery query)
     {
         var source = dbContext.ExportReceipts.AsNoTracking();

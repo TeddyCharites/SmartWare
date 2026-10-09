@@ -22,6 +22,7 @@ public sealed class ExportReceiptAuthorizationTests
     [InlineData(nameof(ExportReceiptsController.Approve), AuthorizationPolicies.ApproveReceipts)]
     [InlineData(nameof(ExportReceiptsController.Reject), AuthorizationPolicies.ApproveReceipts)]
     [InlineData(nameof(ExportReceiptsController.Complete), AuthorizationPolicies.CompleteReceipts)]
+    [InlineData(nameof(ExportReceiptsController.Cancel), AuthorizationPolicies.ApproveReceipts)]
     public void MutationActions_RequireExpectedPolicy(string actionName, string policy)
     {
         var actions = typeof(ExportReceiptsController)

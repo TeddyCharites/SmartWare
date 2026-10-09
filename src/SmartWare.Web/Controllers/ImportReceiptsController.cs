@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SmartWare.Application.AI.Chatbot;
 using SmartWare.Application.Common;
 using SmartWare.Application.Warehouse.Imports;
 using SmartWare.Domain.Constants;
@@ -11,7 +12,9 @@ namespace SmartWare.Web.Controllers;
 
 [Authorize]
 [Route("nhap-kho")]
-public sealed class ImportReceiptsController(IImportReceiptService importReceiptService) : Controller
+public sealed class ImportReceiptsController(
+    IImportReceiptService importReceiptService,
+    IChatDraftStore draftStore) : Controller
 {
     [HttpGet("")]
     public async Task<IActionResult> Index(
@@ -46,9 +49,26 @@ public sealed class ImportReceiptsController(IImportReceiptService importReceipt
 
     [Authorize(Policy = AuthorizationPolicies.CreateReceipts)]
     [HttpGet("tao-phieu")]
-    public async Task<IActionResult> Create(CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(Guid? draftId, CancellationToken cancellationToken)
     {
         var model = new CreateImportReceiptViewModel();
+        // "Mở trong form" from the assistant: prefill from the user's own draft so it can be edited.
+        if (draftId is { } id &&
+            draftStore.Get(GetCurrentUserId(), id) is { Type: ChatDraftTypes.Import } draft &&
+            draft.Lines.Count > 0)
+        {
+            model.SupplierId = draft.SupplierId ?? 0;
+            model.WarehouseId = draft.WarehouseId;
+            model.Lines = draft.Lines
+                .Select(line => new ImportReceiptLineViewModel
+                {
+                    ProductId = line.ProductId,
+                    Quantity = line.Quantity,
+                    UnitCost = line.UnitCost
+                })
+                .ToList();
+        }
+
         await PopulateOptionsAsync(model, cancellationToken);
         return View(model);
     }

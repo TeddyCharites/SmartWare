@@ -87,3 +87,16 @@ public sealed class CompleteExportReceiptViewModel
     [Required]
     public string RowVersion { get; set; } = string.Empty;
 }
+
+public sealed class CancelExportReceiptViewModel
+{
+    [Range(1, int.MaxValue)]
+    public int Id { get; set; }
+
+    [Required]
+    public string RowVersion { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Vui lòng nhập lý do hủy phiếu.")]
+    [StringLength(1000, ErrorMessage = "Lý do hủy không được vượt quá 1.000 ký tự.")]
+    public string Reason { get; set; } = string.Empty;
+}

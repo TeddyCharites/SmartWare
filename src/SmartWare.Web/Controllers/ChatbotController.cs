@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using SmartWare.Application.AI.Chatbot;
+using SmartWare.Application.Warehouse.Exports;
+using SmartWare.Application.Warehouse.Imports;
 using SmartWare.Domain.Constants;
 
 namespace SmartWare.Web.Controllers;
@@ -12,8 +14,67 @@ namespace SmartWare.Web.Controllers;
 [Route("chatbot")]
 public sealed class ChatbotController(
     IGeminiService geminiService,
-    IChatHistoryService chatHistoryService) : Controller
+    IChatHistoryService chatHistoryService,
+    IChatDraftStore draftStore,
+    IImportReceiptService importReceiptService,
+    IExportReceiptService exportReceiptService) : Controller
 {
+    /// <summary>
+    /// Creates the receipt the assistant drafted, after the user pressed "Xác nhận tạo phiếu".
+    /// The draft comes from the server-side store (never from the browser), is bound to the
+    /// current user and can be used once. Creation goes through the normal receipt services, so
+    /// the receipt is validated, audited and starts in the "Chờ duyệt" state like any other.
+    /// </summary>
+    [HttpPost("drafts/{draftId:guid}/confirm")]
+    [Authorize(Policy = AuthorizationPolicies.CreateReceipts)]
+    [ValidateAntiForgeryToken]
+    [DisableRateLimiting]
+    public async Task<IActionResult> ConfirmDraft(Guid draftId, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        var draft = draftStore.Take(userId, draftId);
+        if (draft is null)
+        {
+            return NotFound(new DraftConfirmation(false, "Bản nháp không tồn tại, đã hết hạn hoặc đã được xác nhận trước đó."));
+        }
+
+        if (!draft.CanConfirm)
+        {
+            draftStore.Save(userId, draft);
+            return BadRequest(new DraftConfirmation(false, "Bản nháp còn lưu ý cần xử lý. Hãy bổ sung thông tin hoặc mở trong form để chỉnh sửa."));
+        }
+
+        var isImport = draft.Type == ChatDraftTypes.Import;
+        var result = isImport
+            ? await importReceiptService.CreateAsync(
+                new CreateImportReceiptCommand(
+                    draft.SupplierId ?? 0,
+                    draft.WarehouseId,
+                    draft.Lines.Select(line => new CreateImportReceiptLine(line.ProductId, line.Quantity, line.UnitCost)).ToArray(),
+                    userId),
+                cancellationToken)
+            : await exportReceiptService.CreateAsync(
+                new CreateExportReceiptCommand(
+                    draft.OrderId,
+                    draft.WarehouseId,
+                    draft.Lines.Select(line => new CreateExportReceiptLine(line.ProductId, line.Quantity)).ToArray(),
+                    userId),
+                cancellationToken);
+        if (!result.Succeeded)
+        {
+            // Keep the draft so the user can still open it in the form and fix it.
+            draftStore.Save(userId, draft);
+            return BadRequest(new DraftConfirmation(false, result.Errors.First()));
+        }
+
+        return Ok(new DraftConfirmation(
+            true,
+            result.Message ?? "Đã tạo phiếu.",
+            Url.Action("Index", isImport ? "ImportReceipts" : "ExportReceipts")));
+    }
+
+    private sealed record DraftConfirmation(bool Success, string Message, string? ListUrl = null);
+
     [HttpGet("status")]
     [DisableRateLimiting]
     public IActionResult Status() => Ok(new { configured = geminiService.IsConfigured });

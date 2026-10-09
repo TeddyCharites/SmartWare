@@ -14,4 +14,6 @@ internal sealed class GeminiOptions
     public int EmbeddingDimensions { get; set; } = 768;
     public int RagTopK { get; set; } = 3;
     public double RagMinimumScore { get; set; } = 0.35;
+    public int MaxToolRounds { get; set; } = 4;
+    public string[] FallbackModels { get; set; } = [];
 }
